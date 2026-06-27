@@ -112,14 +112,15 @@ def load_token():
             pass
 
     # ✅ ADD THIS BLOCK (Railway variable fallback)
+        # ✅ Railway ENV variable fallback (persists across deploys)
     env_rt = (os.environ.get('FYERS_REFRESH_TOKEN') or '').strip()
-print("ENV FYERS_REFRESH_TOKEN length:", len(env_rt))
+    print(f"ENV FYERS_REFRESH_TOKEN present: {bool(env_rt)} (length: {len(env_rt)})")
 
-if not token_data.get
-def auto_refresh_access_token():
-    """Auto-refresh using refresh token + PIN"""
-    refresh_token = token_data.get('refresh_token')
-print("auto_refresh: refresh_token exists:", bool(refresh_token))
+    if not token_data.get('refresh_token') and env_rt:
+        token_data['refresh_token'] = env_rt
+        print("✓ Refresh token loaded from ENV (FYERS_REFRESH_TOKEN)")
+
+    print(f"Final refresh_token loaded: {bool(token_data.get('refresh_token'))}")
 if not refresh_token:
     return False
 
