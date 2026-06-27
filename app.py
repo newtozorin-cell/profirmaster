@@ -828,7 +828,7 @@ def generate_signals():
 
     signals.sort(key=lambda x: x.get('scan_date', ''), reverse=True)
 
-        try:
+   try:
         existing_all_ids = {s['_id'] for s in existing}
         brand_new = [s for s in signals if s['_id'] not in existing_all_ids]
         if brand_new:
