@@ -276,6 +276,21 @@ def round_to_strike(price, step):
 # AUTHENTICATION ROUTES (DO NOT TOUCH)
 # ========================================
 
+@app.route('/api/test-telegram')
+def test_telegram():
+    fake_sig = {
+        '_id': 'TEST_' + datetime.now().strftime('%H%M%S'),
+        'symbol': 'TEST_NIFTY',
+        'direction': 'LONG',
+        'entry': 25000,
+        'sl': 24900,
+        'target_1': 25100,
+        'target_2': 25200,
+        'scan_date': datetime.now(IST).isoformat()
+    }
+    notify_new_signals([fake_sig])
+    return jsonify({'status': 'sent', 'sig': fake_sig})
+
 @app.route('/refresh')
 def refresh_token():
     auth_url = (
