@@ -10,7 +10,6 @@ import os
 import json
 import hashlib
 import threading
-import os
 import time
 from fyers_apiv3 import fyersModel
 
