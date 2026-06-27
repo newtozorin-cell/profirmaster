@@ -144,16 +144,21 @@ def auto_refresh_access_token():
             timeout=10
         )
 
+                print(f"refresh API status: {r.status_code}, body: {r.text[:300]}")
+
         if r.status_code == 200 and r.json().get('s') == 'ok':
             new_access_token = f"{FYERS_APP_ID}:{r.json()['access_token']}"
             save_token(new_access_token)
+            token_data['access_token'] = new_access_token
+            token_data['token_time'] = datetime.now().isoformat()
+            print("✓ Token refreshed and saved successfully")
             return True
 
+        print(f"✗ Refresh rejected by Fyers: {r.text[:300]}")
         return False
     except Exception as e:
         print(f"✗ Auto-refresh failed: {e}")
         return False
-
 
 load_token()
 
