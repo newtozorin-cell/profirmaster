@@ -115,10 +115,7 @@ def load_token():
     env_rt = (os.environ.get('FYERS_REFRESH_TOKEN') or '').strip()
 print("ENV FYERS_REFRESH_TOKEN length:", len(env_rt))
 
-if not token_data.get('refresh_token') and env_rt:
-    token_data['refresh_token'] = env_rt
-    print("✓ Refresh token loaded from ENV (FYERS_REFRESH_TOKEN)")
-
+if not token_data.get
 def auto_refresh_access_token():
     """Auto-refresh using refresh token + PIN"""
     refresh_token = token_data.get('refresh_token')
