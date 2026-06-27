@@ -64,6 +64,35 @@ scan_cache = {'signals': [], 'last_scan': None}
 options_cache = {'signals': [], 'last_fetch': None}
 scan_lock = threading.Lock()
 
+
+# ========================================
+# TELEGRAM NOTIFICATIONS
+# ========================================
+TELEGRAM_BOT_TOKEN = '8294412494:AAFtTeLwapxfpW_olOakE6DeEUeooDUzsew'
+TELEGRAM_CHAT_IDS = ['1418527379', '878639389']
+
+def send_telegram(chat_id, text):
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        req.post(url, json={'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}, timeout=5)
+    except Exception as e:
+        print(f"Telegram send error: {e}")
+
+def notify_new_signals(new_signals):
+    if not new_signals:
+        return
+    for sig in new_signals[:5]:
+        msg = (
+            f"🚨 <b>{sig.get('symbol','?')}</b>\n"
+            f"Type: {sig.get('type','?')}\n"
+            f"Entry: {sig.get('entry','?')}\n"
+            f"Stop: {sig.get('sl','?')}\n"
+            f"Target: {sig.get('target','?')}\n"
+            f"Time: {sig.get('scan_date','?')}"
+        )
+        for cid in TELEGRAM_CHAT_IDS:
+            send_telegram(cid, msg)
+
 # ========================================
 # TOKEN MANAGEMENT (Fixed & Robust)
 # ========================================
