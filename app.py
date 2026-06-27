@@ -82,17 +82,24 @@ def notify_new_signals(new_signals):
     if not new_signals:
         return
     for sig in new_signals[:5]:
+        dt_raw = sig.get('scan_date', '')
+        try:
+            dt_obj = datetime.fromisoformat(dt_raw)
+            dt_str = dt_obj.strftime('%Y-%m-%d %H:%M')
+        except:
+            dt_str = dt_raw
         msg = (
-            f"🚨 <b>{sig.get('symbol','?')}</b>\n"
-            f"Type: {sig.get('type','?')}\n"
-            f"Entry: {sig.get('entry','?')}\n"
-            f"Stop: {sig.get('sl','?')}\n"
-            f"Target: {sig.get('target','?')}\n"
-            f"Time: {sig.get('scan_date','?')}"
+            f"📊 <b>{sig.get('symbol','?')}</b>\n"
+            f"📅 {dt_str}\n"
+            f"🔀 Dir: {sig.get('direction','?')}\n"
+            f"🎯 Entry: {sig.get('entry','?')}\n"
+            f"🛑 SL: {sig.get('sl','?')}\n"
+            f"✅ T1: {sig.get('target_1','?')}\n"
+            f"🚀 T2: {sig.get('target_2','?')}"
         )
         for cid in TELEGRAM_CHAT_IDS:
             send_telegram(cid, msg)
-
+            
 # ========================================
 # TOKEN MANAGEMENT (Fixed & Robust)
 # ========================================
