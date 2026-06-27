@@ -121,8 +121,9 @@ if not token_data.get('refresh_token') and env_rt:
 def auto_refresh_access_token():
     """Auto-refresh using refresh token + PIN"""
     refresh_token = token_data.get('refresh_token')
-    if not refresh_token:
-        return False
+print("auto_refresh: refresh_token exists:", bool(refresh_token))
+if not refresh_token:
+    return False
 
     try:
         app_id_hash = hashlib.sha256(f"{FYERS_APP_ID}:{FYERS_SECRET_KEY}".encode()).hexdigest()
