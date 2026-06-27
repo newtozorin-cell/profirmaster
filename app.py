@@ -110,6 +110,11 @@ def load_token():
         except:
             pass
 
+    # ✅ ADD THIS BLOCK (Railway variable fallback)
+    if not token_data.get('refresh_token'):
+        token_data['refresh_token'] = os.environ.get('FYERS_REFRESH_TOKEN', '').strip() or None
+        if token_data['refresh_token']:
+            print("✓ Refresh token loaded from ENV (FYERS_REFRESH_TOKEN)")
 
 def auto_refresh_access_token():
     """Auto-refresh using refresh token + PIN"""
