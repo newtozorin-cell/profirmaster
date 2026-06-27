@@ -129,7 +129,7 @@ def auto_refresh_access_token():
     if not refresh_token:
         return False
 
-    try:
+        try:
         app_id_hash = hashlib.sha256(f"{FYERS_APP_ID}:{FYERS_SECRET_KEY}".encode()).hexdigest()
 
         r = req.post(
@@ -144,10 +144,8 @@ def auto_refresh_access_token():
             timeout=10
         )
 
-       print(f"refresh API status: {r.status_code}, body: {r.text[:300]}")
+        print(f"REFRESH status={r.status_code} body={r.text[:200]}")
 
-       print(f"REFRESH status={r.status_code} body={r.text[:200]}")
-        
         if r.status_code == 200 and r.json().get('s') == 'ok':
             new_access_token = f"{FYERS_APP_ID}:{r.json()['access_token']}"
             save_token(new_access_token)
