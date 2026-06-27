@@ -133,7 +133,7 @@ def auto_refresh_access_token():
         
             app_id_hash = hashlib.sha256(f"{FYERS_APP_ID}:{FYERS_SECRET_KEY}".encode()).hexdigest()
 
-        r = req.post(
+            r = req.post(
             'https://api-t1.fyers.in/api/v3/validate-refresh-token',
             json={
                 'grant_type': 'refresh_token',
