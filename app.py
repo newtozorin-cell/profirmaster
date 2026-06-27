@@ -22,7 +22,7 @@ app.secret_key = os.environ.get('FLASK_SECRET', 'atr-scanner-secret-key-2024')
 # ========================================
 FYERS_APP_ID     = os.environ.get('API_KEY', 'H2A8OFDH52-100')
 FYERS_SECRET_KEY = os.environ.get('API_SECRET', 'EV0ZS4K4FL')
-FYERS_REDIRECT_URL = 'https://profirmaster.onrender.com/callback'
+FYERS_REDIRECT_URL = 'https://web-production-904d3.up.railway.app/callback'
 
 # ========================================
 # SCANNER CONFIGURATION (Exact Copy from Original)
