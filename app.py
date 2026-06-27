@@ -1091,6 +1091,10 @@ def api_track():
 # ========================================
 # STARTUP BLOCK
 # ========================================
+# Auto-start background scanner (works with gunicorn)
+bg_thread = threading.Thread(target=background_scanner, daemon=True)
+bg_thread.start()
+print("Background scanner started")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
