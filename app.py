@@ -303,7 +303,7 @@ def set_token():
                     'grant_type': 'authorization_code',
                     'appIdHash': app_id_hash,
                     'code': auth_code,
-                    'pin': ''
+                    'pin': os.environ.get('FYERS_PIN', '')
                 },
                 headers={'Content-Type': 'application/json'},
                 timeout=15
