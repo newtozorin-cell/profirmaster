@@ -254,7 +254,7 @@ def callback():
                 'grant_type': 'authorization_code',
                 'appIdHash': app_id_hash,
                 'code': auth_code,
-                'pin': os.environ.get('FYERS_PIN', '')
+                'pin': ''
             },
             headers={'Content-Type': 'application/json'},
             timeout=15
@@ -303,7 +303,7 @@ def set_token():
                     'grant_type': 'authorization_code',
                     'appIdHash': app_id_hash,
                     'code': auth_code,
-                    'pin': os.environ.get('FYERS_PIN', '')
+                    'pin': ''
                 },
                 headers={'Content-Type': 'application/json'},
                 timeout=15
