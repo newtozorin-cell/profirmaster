@@ -119,9 +119,15 @@ def load_token():
         token_data['refresh_token'] = env_rt
         print("✓ Refresh token loaded from ENV (FYERS_REFRESH_TOKEN)")
 
-    print(f"Final refresh_token loaded: {bool(token_data.get('refresh_token'))}")
-if not refresh_token:
-    return False
+        print(f"Final refresh_token loaded: {bool(token_data.get('refresh_token'))}")
+
+
+def auto_refresh_access_token():
+    """Auto-refresh using refresh token + PIN"""
+    refresh_token = token_data.get('refresh_token')
+    print(f"auto_refresh: refresh_token exists: {bool(refresh_token)}")
+    if not refresh_token:
+        return False
 
     try:
         app_id_hash = hashlib.sha256(f"{FYERS_APP_ID}:{FYERS_SECRET_KEY}".encode()).hexdigest()
