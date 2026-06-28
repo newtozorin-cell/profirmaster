@@ -134,6 +134,7 @@ def notify_new_signals(new_signals):
         )
         for cid in TELEGRAM_CHAT_IDS:
             send_telegram(cid, msg)
+        save_signal_to_github(sig)    
             
 # ========================================
 # TOKEN MANAGEMENT (Fixed & Robust)
