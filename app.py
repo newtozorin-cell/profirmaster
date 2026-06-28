@@ -70,6 +70,8 @@ scan_lock = threading.Lock()
 # ========================================
 TELEGRAM_BOT_TOKEN = '8294412494:AAFtTeLwapxfpW_olOakE6DeEUeooDUzsew'
 TELEGRAM_CHAT_IDS = ['1418527379', '878639389']
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+GITHUB_REPO = os.environ.get('GITHUB_REPO', '')
 
 def send_telegram(chat_id, text):
     try:
