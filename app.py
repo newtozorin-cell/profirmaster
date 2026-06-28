@@ -78,6 +78,39 @@ def send_telegram(chat_id, text):
     except Exception as e:
         print(f"Telegram send error: {e}")
 
+
+def save_signal_to_github(signal):
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return
+    try:
+        import base64
+        path = 'data/signals.json'
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
+        headers = {'Authorization': f'token {GITHUB_TOKEN}', 'Accept': 'application/vnd.github.v3+json'}
+
+        r = req.get(url, headers=headers, timeout=10)
+        sha = None
+        signals_list = []
+        if r.status_code == 200:
+            sha = r.json()['sha']
+            content = base64.b64decode(r.json()['content']).decode()
+            try:
+                signals_list = json.loads(content) if content.strip() else []
+            except:
+                signals_list = []
+
+        signals_list.append(signal)
+        signals_list = signals_list[-500:]
+
+        new_content = base64.b64encode(json.dumps(signals_list, indent=2).encode()).decode()
+        body = {'message': f"signal: {signal.get('_id','?')}", 'content': new_content}
+        if sha:
+            body['sha'] = sha
+
+        req.put(url, headers=headers, json=body, timeout=10)
+    except Exception as e:
+        print(f"GitHub save error: {e}")
+        
 def notify_new_signals(new_signals):
     if not new_signals:
         return
