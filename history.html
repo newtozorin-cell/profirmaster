@@ -305,6 +305,7 @@ function showToast(m,t){var e=document.getElementById('toast');e.textContent=m;e
 function load(){
     // First sync any new trades from scanner page localStorage
     syncFromScanner();
+    fetchFromRailway();
     try{var r=localStorage.getItem('signalHistory');if(r)allH=JSON.parse(r).filter(function(s){return s.scanner_type==='atr_trailing';});}
     catch(e){allH=[];}
     allH.sort(function(a,b){return new Date(b.scan_date)-new Date(a.scan_date);});
@@ -312,6 +313,32 @@ function load(){
 }
 
 // Sync new trades from the scanner page's localStorage
+function fetchFromRailway(){
+    fetch('https://web-production-904d3.up.railway.app/api/signals')
+        .then(function(r){return r.json();})
+        .then(function(data){
+            if(!data||!data.signals)return;
+            var existing=localStorage.getItem('signalHistory');
+            var all=existing?JSON.parse(existing):[];
+            var added=0;
+            data.signals.forEach(function(t){
+                t.scanner_type='atr_trailing';
+                if(!t._id)t._id=t.symbol+'_'+t.scan_date;
+                var exists=all.some(function(s){return s._id===t._id;});
+                if(!exists){all.push(t);added++;}
+            });
+            if(all.length>5000)all=all.slice(all.length-5000);
+            localStorage.setItem('signalHistory',JSON.stringify(all));
+            if(added>0){
+                showToast('Synced '+added+' trades from server','success');
+                allH=all.filter(function(s){return s.scanner_type==='atr_trailing';});
+                allH.sort(function(a,b){return new Date(b.scan_date)-new Date(a.scan_date);});
+                applyFilters();
+            }
+        })
+        .catch(function(e){console.log('Railway fetch error:',e);});
+}
+
 function syncFromScanner(){
     try{
         var scannerData=localStorage.getItem('striketrail_signals');
@@ -359,7 +386,7 @@ function syncFromScanner(){
 }
 
 // Poll for new trades every 3 seconds (in case scanner is open in another tab)
-setInterval(function(){syncFromScanner();},3000);
+setInterval(function(){syncFromScanner();fetchFromRailway();},30000);
 
 function saveAll(){
     var r=localStorage.getItem('signalHistory');var all=[];
