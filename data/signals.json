@@ -1,0 +1,12 @@
+[
+  {
+    "_id": "TEST_115606",
+    "symbol": "TEST_NIFTY",
+    "direction": "LONG",
+    "entry": 25000,
+    "sl": 24900,
+    "target_1": 25100,
+    "target_2": 25200,
+    "scan_date": "2026-06-28T17:26:06.216867+05:30"
+  }
+]
