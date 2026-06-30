@@ -949,16 +949,15 @@ def generate_option_signals(futures_signals):
 # ========================================
 
 def get_scanner_status():
-    # If memory has no token, try loading from file
-    if token_data['access_token'] is None:
-        try:
-            with open(TOKEN_FILE, 'r') as f:
-                data = json.load(f)
-                token_data['access_token'] = data.get('access_token')
-                token_data['token_time'] = data.get('token_time')
-                print("✓ Token loaded from file in get_scanner_status")
-        except Exception as e:
-            print(f"⚠ Could not load token from file: {e}")
+    # ALWAYS reload from file to ensure latest token
+    try:
+        with open(TOKEN_FILE, 'r') as f:
+            data = json.load(f)
+            token_data['access_token'] = data.get('access_token')
+            token_data['token_time'] = data.get('token_time')
+            print("✓ Token reloaded from file in get_scanner_status")
+    except Exception as e:
+        print(f"⚠ Could not load token: {e}")
 
     now = datetime.now(IST)
     time_val = now.hour * 100 + now.minute
@@ -975,7 +974,6 @@ def get_scanner_status():
     if 900 <= time_val < 915:
         return 'PRE_MARKET'
     return 'MARKET_CLOSED'
-
 
 # ========================================
 # BACKGROUND SCANNER
