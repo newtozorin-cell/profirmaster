@@ -1021,16 +1021,15 @@ def home():
 
 @app.route('/api/status')
 def api_status():
-    # Force reload from file if memory is empty
-    if token_data['access_token'] is None:
-        try:
-            with open(TOKEN_FILE, 'r') as f:
-                data = json.load(f)
-                token_data['access_token'] = data.get('access_token')
-                token_data['token_time'] = data.get('token_time')
-                print("✓ Token reloaded from file for /api/status")
-        except:
-            pass
+    # FORCE reload from file to ensure latest token
+    try:
+        with open(TOKEN_FILE, 'r') as f:
+            data = json.load(f)
+            token_data['access_token'] = data.get('access_token')
+            token_data['token_time'] = data.get('token_time')
+            print("✓ Token force-reloaded from file")
+    except:
+        pass
 
     return jsonify({
         'status': 'success',
@@ -1048,7 +1047,6 @@ def api_status():
             } for sym, cfg in SCANNER_CONFIG.items()
         }
     })
-
 @app.route('/api/signals')
 def api_signals():
     now = datetime.now(IST)
