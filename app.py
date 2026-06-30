@@ -1115,6 +1115,34 @@ def api_signals():
             'scan_in_progress': True,
             'timestamp': now.isoformat()
         })
+    # Try to acquire lock for fresh scan
+    if scan_lock.acquire(blocking=False):
+        try:
+            if status in ['ACTIVE', 'PRE_MARKET']:
+                signals = generate_signals()
+            else:
+                signals = scan_cache.get('signals', [])
+            scan_cache['signals'] = signals
+            scan_cache['last_scan'] = now
+            return jsonify({
+                'status': 'success',
+                'scanner_status': status,
+                'signals': signals,
+                'cached': False,
+                'timestamp': now.isoformat()
+            })
+        finally:
+            scan_lock.release()
+    else:
+        # Another scan is running, return current cache with flag
+        return jsonify({
+            'status': 'success',
+            'scanner_status': status,
+            'signals': scan_cache.get('signals', []),
+            'cached': True,
+            'scan_in_progress': True,
+            'timestamp': now.isoformat()
+        })
     if scan_lock.acquire(blocking=False):
         try:
             if status in ['ACTIVE', 'PRE_MARKET']:
