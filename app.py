@@ -1030,15 +1030,15 @@ def home():
 
 @app.route('/api/status')
 def api_status():
-    # FORCE reload from file to ensure latest token
+    # FORCE reload from file every time
     try:
         with open(TOKEN_FILE, 'r') as f:
             data = json.load(f)
             token_data['access_token'] = data.get('access_token')
             token_data['token_time'] = data.get('token_time')
-            print("✓ Token force-reloaded from file")
-    except:
-        pass
+            print("✓ Token force-reloaded in /api/status")
+    except Exception as e:
+        print(f"⚠ Could not load token in /api/status: {e}")
 
     return jsonify({
         'status': 'success',
@@ -1056,6 +1056,7 @@ def api_status():
             } for sym, cfg in SCANNER_CONFIG.items()
         }
     })
+    
 @app.route('/api/signals')
 def api_signals():
     # FORCE reload from file FIRST
