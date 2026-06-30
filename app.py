@@ -1058,6 +1058,40 @@ def api_status():
     })
     
 @app.route('/api/signals')
+def api_signals():
+    # Force reload from file
+    try:
+        with open(TOKEN_FILE, 'r') as f:
+            data = json.load(f)
+            token_data['access_token'] = data.get('access_token')
+            token_data['token_time'] = data.get('token_time')
+            print("✓ Token reloaded in /api/signals")
+    except Exception as e:
+        print(f"⚠ Could not load token in /api/signals: {e}")
+
+    now = datetime.now(IST)
+    status = get_scanner_status()
+    force = request.args.get('force', 'false').lower() == 'true'
+
+    if status == 'NO_TOKEN':
+        return jsonify({
+            'status': 'success',
+            'scanner_status': 'NO_TOKEN',
+            'signals': [],
+            'timestamp': now.isoformat()
+        })
+
+    # If cache is fresh and not forcing, return immediately
+    cache_ttl = 30 if status == 'ACTIVE' else 60
+    if not force and scan_cache['last_scan'] and (now - scan_cache['last_scan']).total_seconds() < cache_ttl:
+        return jsonify({
+            'status': 'success',
+            'scanner_status': status,
+            'signals': scan_cache['signals'],
+            'cached': True,
+            'timestamp': now.isoformat()
+        })
+
     # Try to acquire lock for fresh scan
     if scan_lock.acquire(blocking=False):
         try:
@@ -1073,7 +1107,7 @@ def api_status():
                 'signals': signals,
                 'cached': False,
                 'timestamp': now.isoformat()
-        })
+            })
         finally:
             scan_lock.release()
     else:
