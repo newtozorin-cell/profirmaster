@@ -1049,6 +1049,16 @@ def api_status():
     })
 @app.route('/api/signals')
 def api_signals():
+    # FORCE reload from file FIRST
+    try:
+        with open(TOKEN_FILE, 'r') as f:
+            data = json.load(f)
+            token_data['access_token'] = data.get('access_token')
+            token_data['token_time'] = data.get('token_time')
+            print("✓ Token force-reloaded from file in /api/signals")
+    except:
+        pass
+
     now = datetime.now(IST)
     status = get_scanner_status()
     force = request.args.get('force', 'false').lower() == 'true'
@@ -1097,7 +1107,6 @@ def api_signals():
             'scan_in_progress': True,
             'timestamp': now.isoformat()
         })
-
 
 @app.route('/api/option-signals')
 def api_option_signals():
