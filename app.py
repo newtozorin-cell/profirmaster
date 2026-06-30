@@ -1085,7 +1085,7 @@ def api_signals():
             'signals': scan_cache['signals'],
             'cached': True,
             'timestamp': now.isoformat()
-        })
+    })
 
     # Try to acquire lock for fresh scan
     if scan_lock.acquire(blocking=False):
@@ -1102,7 +1102,7 @@ def api_signals():
                 'signals': signals,
                 'cached': False,
                 'timestamp': now.isoformat()
-            })
+    })
         finally:
             scan_lock.release()
     else:
