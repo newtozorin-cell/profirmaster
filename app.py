@@ -1130,7 +1130,7 @@ def api_signals():
                 'signals': signals,
                 'cached': False,
                 'timestamp': now.isoformat()
-            })
+        })
         finally:
             scan_lock.release()
     else:
