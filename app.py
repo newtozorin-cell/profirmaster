@@ -949,7 +949,7 @@ def generate_option_signals(futures_signals):
 # ========================================
 
 def get_scanner_status():
-    # Always reload from file to ensure latest token
+    # Always reload from file
     try:
         with open(TOKEN_FILE, 'r') as f:
             data = json.load(f)
@@ -1030,7 +1030,7 @@ def home():
 
 @app.route('/api/status')
 def api_status():
-    # Reload from file first
+    # Reload from file
     try:
         with open(TOKEN_FILE, 'r') as f:
             data = json.load(f)
@@ -1076,6 +1076,7 @@ def api_signals():
     if status == 'NO_TOKEN':
         return jsonify({'status': 'success', 'scanner_status': 'NO_TOKEN', 'signals': [], 'timestamp': now.isoformat()})
 
+    # If cache is fresh and not forcing, return immediately
     cache_ttl = 30 if status == 'ACTIVE' else 60
     if not force and scan_cache['last_scan'] and (now - scan_cache['last_scan']).total_seconds() < cache_ttl:
         return jsonify({
@@ -1086,6 +1087,34 @@ def api_signals():
             'timestamp': now.isoformat()
         })
 
+    # Try to acquire lock for fresh scan
+    if scan_lock.acquire(blocking=False):
+        try:
+            if status in ['ACTIVE', 'PRE_MARKET']:
+                signals = generate_signals()
+            else:
+                signals = scan_cache.get('signals', [])
+            scan_cache['signals'] = signals
+            scan_cache['last_scan'] = now
+            return jsonify({
+                'status': 'success',
+                'scanner_status': status,
+                'signals': signals,
+                'cached': False,
+                'timestamp': now.isoformat()
+            })
+        finally:
+            scan_lock.release()
+    else:
+        # Another scan is running, return current cache with flag
+        return jsonify({
+            'status': 'success',
+            'scanner_status': status,
+            'signals': scan_cache.get('signals', []),
+            'cached': True,
+            'scan_in_progress': True,
+            'timestamp': now.isoformat()
+        })
     if scan_lock.acquire(blocking=False):
         try:
             if status in ['ACTIVE', 'PRE_MARKET']:
