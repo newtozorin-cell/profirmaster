@@ -2080,5 +2080,32 @@
     "lot_size": 30,
     "scanner_type": "atr_trailing",
     "outcome": "pending"
+  },
+  {
+    "_id": "NIFTY50_20260703_1330",
+    "symbol": "NIFTY50",
+    "direction": "SELL-SHORT",
+    "model": "ATR-TS",
+    "entry": 24291.8,
+    "sl": 24355.31,
+    "target_1": 24196.53,
+    "target_2": 24133.02,
+    "target": 24133.02,
+    "risk_reward": "1:2.5",
+    "confidence": 0.8,
+    "grade": "A",
+    "grade_score": 85,
+    "scan_date": "2026-07-03T13:30:00+05:30",
+    "scan_time": "13:30",
+    "trail1": 24315.12,
+    "trail2": 24355.31,
+    "fast_atr": 15.54,
+    "slow_atr": 15.88,
+    "bar_color": "red",
+    "regime": "BEAR",
+    "timeframe": "5m",
+    "lot_size": 65,
+    "scanner_type": "atr_trailing",
+    "outcome": "pending"
   }
 ]
