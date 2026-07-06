@@ -499,9 +499,6 @@ TRADING_HOLIDAYS = {
     date(2026,10,20),date(2026,11,10), date(2026,11,24), date(2026,12,25),
 }
 
-}
-
-
 def is_trading_day(d):
 
     return d.weekday() < 5 and d not in TRADING_HOLIDAYS
