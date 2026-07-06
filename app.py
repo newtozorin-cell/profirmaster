@@ -44,7 +44,7 @@ SCANNER_CONFIG = {
         'option_key': 'NSE:NIFTYBANK-INDEX',
         'resample_minutes': 5,
         'fast_period': 5,
-        'fast_mult': 1.5,
+        'fast_mult': 1.3,
         'slow_period': 20,
         'slow_mult': 4.0,
         'lot_size': 30,
