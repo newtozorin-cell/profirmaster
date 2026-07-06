@@ -760,10 +760,10 @@ def generate_signals():
                 config['slow_period'], config['slow_mult']
             )
 
-            today = datetime.now(IST).date()
+                        today = datetime.now(IST).date()
             scan_df = df[df['datetime'].dt.date == today].copy()
             print(f"Scanning today ({today}) for {symbol}: {len(scan_df)} candles")
-
+            
             signal_count = 0
             for _, row in scan_df.iterrows():
                 if not (row.get('buy_signal', False) or row.get('sell_signal', False)):
@@ -773,7 +773,7 @@ def generate_signals():
                 entry = round(float(row['close']), 2)
                 bar_c = row.get('bar_color', 'neutral')
                 if bar_c in ('blue', 'yellow', 'neutral'):
-                continue
+                    continue
                 trail2 = round(float(row['trail2']), 2)
                 trail1 = round(float(row['trail1']), 2)
 
