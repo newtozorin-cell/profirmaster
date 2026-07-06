@@ -870,13 +870,6 @@ def generate_signals():
 
     signals.sort(key=lambda x: x.get('scan_date', ''), reverse=True)
 
-    existing = scan_cache.get('signals', [])
-    existing_ids = {s['_id'] for s in signals}
-
-    for s in existing:
-        if s['_id'] not in existing_ids and s.get('scan_date', '')[:10] == datetime.now(IST).strftime('%Y-%m-%d'):
-            signals.append(s)
-
     signals.sort(key=lambda x: x.get('scan_date', ''), reverse=True)
 
     try:
