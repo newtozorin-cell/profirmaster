@@ -760,7 +760,7 @@ def generate_signals():
                 config['slow_period'], config['slow_mult']
             )
 
-                        today = datetime.now(IST).date()
+            today = datetime.now(IST).date()
             scan_df = df[df['datetime'].dt.date == today].copy()
             print(f"Scanning today ({today}) for {symbol}: {len(scan_df)} candles")
             
