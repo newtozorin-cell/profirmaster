@@ -55,50 +55,46 @@ FYERS_REDIRECT_URL = 'https://web-production-904d3.up.railway.app/callback'
 
 SCANNER_CONFIG = {
 
+    SCANNER_CONFIG = {
     'NIFTY50': {
-
-        'instrument_key': 'NSE:NIFTY50-INDEX',
-
+        'underlying': 'NIFTY',
+        'exchange': 'NSE',
+        'expiry_weekday': 1,        # Tuesday
         'option_key': 'NSE:NIFTY50-INDEX',
-
         'resample_minutes': 5,
-
         'fast_period': 5,
-
-        'fast_mult': 1.5,
-
-        'slow_period': 25,
-
-        'slow_mult': 4.0,
-
-        'lot_size': 65,
-
-        'strike_step': 50
-
-    },
-
-    'BANKNIFTY': {
-
-        'instrument_key': 'NSE:NIFTYBANK-INDEX',
-
-        'option_key': 'NSE:NIFTYBANK-INDEX',
-
-        'resample_minutes': 5,
-
-        'fast_period': 5,
-
-        'fast_mult': 1.5,
-
+        'fast_mult': 1.3,
         'slow_period': 20,
-
         'slow_mult': 4.0,
-
         'lot_size': 30,
-
+        'strike_step': 50
+    },
+    'BANKNIFTY': {
+        'underlying': 'BANKNIFTY',
+        'exchange': 'NSE',
+        'expiry_weekday': 1,        # Tuesday
+        'option_key': 'NSE:NIFTYBANK-INDEX',
+        'resample_minutes': 5,
+        'fast_period': 5,
+        'fast_mult': 1.3,
+        'slow_period': 20,
+        'slow_mult': 4.0,
+        'lot_size': 30,
         'strike_step': 100
-
+    },
+    'SENSEX': {
+        'underlying': 'SENSEX',
+        'exchange': 'BSE',
+        'expiry_weekday': 3,        # Thursday
+        'option_key': 'BSE:SENSEX-INDEX',
+        'resample_minutes': 5,
+        'fast_period': 5,
+        'fast_mult': 1.3,
+        'slow_period': 20,
+        'slow_mult': 4.0,
+        'lot_size': 10,
+        'strike_step': 100
     }
-
 }
 
 
@@ -484,26 +480,26 @@ def init_fyers():
 # ========================================
 
 TRADING_HOLIDAYS = {
-
     date(2024,1,26), date(2024,3,25), date(2024,4,14), date(2024,4,17),
-
+    
     date(2024,5,1),  date(2024,6,17), date(2024,8,15), date(2024,10,2),
-
+    
     date(2024,10,24),date(2024,11,1), date(2024,11,15),date(2024,12,25),
-
+    
     date(2025,1,26), date(2025,2,26), date(2025,3,14), date(2025,3,31),
-
+    
     date(2025,4,10), date(2025,4,14), date(2025,4,18), date(2025,5,1),
-
+    
     date(2025,8,15), date(2025,10,2), date(2025,10,23),date(2025,12,25),
-
-    date(2026,1,26), date(2026,3,3),   date(2026,3,26),  date(2026,3,31),
-
-    date(2026,4,3),   date(2026,4,14),  date(2026,5,1),   date(2026,5,28),
-
-    date(2026,6,26),  date(2026,9,14),  date(2026,10,2),  date(2026,10,20),
-
-    date(2026,11,10), date(2026,11,24), date(2026,12,25),
+    
+    date(2026,1,15), date(2026,1,26), date(2026,3,3),   date(2026,3,26),
+    
+    date(2026,3,31), date(2026,4,3),   date(2026,4,14),  date(2026,5,1),
+    
+    date(2026,5,28), date(2026,6,26),  date(2026,9,14),  date(2026,10,2),
+    
+    date(2026,10,20),date(2026,11,10), date(2026,11,24), date(2026,12,25),
+}
 
 }
 
@@ -527,50 +523,62 @@ def last_weekday_of_month(year, month, weekday):
 
 
 def get_monthly_expiry(symbol, year, month):
-
-    expiry = last_weekday_of_month(year, month, 3)
-
+    
+    """Per-symbol expiry weekday. NIFTY/BANKNIFTY = Tue, SENSEX = Thu."""
+    
+    cfg = SCANNER_CONFIG.get(symbol, {})
+    
+    weekday = cfg.get('expiry_weekday', 3)
+    
+    expiry = last_weekday_of_month(year, month, weekday)
+    
     while not is_trading_day(expiry):
-
+        
         expiry -= timedelta(days=1)
-
+        
     return expiry
-
 
 def get_active_expiry(symbol, signal_date=None):
-
     if signal_date is None:
-
         signal_date = datetime.now(IST).date()
-
     if isinstance(signal_date, str):
-
         signal_date = date.fromisoformat(signal_date[:10])
 
-
     y, m = signal_date.year, signal_date.month
-
     expiry = get_monthly_expiry(symbol, y, m)
-
     td_left = sum(
-
         1 for i in range((expiry - signal_date).days + 1)
-
         if is_trading_day(signal_date + timedelta(days=i))
-
     )
-
     if td_left <= 5:
-
         expiry = get_monthly_expiry(symbol, y, m+1) if m < 12 else get_monthly_expiry(symbol, y+1, 1)
-
     return expiry
+
+
+def get_futures_symbol(underlying, year, month, exchange="NSE"):
+    """Build Fyers futures symbol. Format: {Ex}:{Underlying}{YY}{MMM}FUT"""
+    months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+    yy = str(year)[-2:]
+    return f"{exchange}:{underlying}{yy}{months[month-1]}FUT"
+
+
+def get_current_futures_symbol(symbol_name):
+    """Return (futures_symbol, year, month) for the front-month contract.
+    Auto-rolls to next month if within 5 days of expiry."""
+    cfg = SCANNER_CONFIG[symbol_name]
+    today = datetime.now(IST).date()
+    year, month = today.year, today.month
+    expiry = get_monthly_expiry(symbol_name, year, month)
+    if (expiry - today).days <= 5:
+        if month == 12:
+            year, month = year + 1, 1
+        else:
+            month += 1
+    return get_futures_symbol(cfg['underlying'], year, month, cfg['exchange']), year, month
 
 
 def round_to_strike(price, step):
-
     return round(round(price / step) * step, 2)
-
 
 
 # ========================================
@@ -1358,7 +1366,11 @@ def generate_signals():
             print(f"\nScanning {symbol}...")
 
 
-            df_1m = fetch_candles(config['instrument_key'], '1minute', days=90)
+            futures_sym, fy, fm = get_current_futures_symbol(symbol)
+            
+            print(f"   Using futures: {futures_sym}")
+            
+            df_1m = fetch_candles(futures_sym, '1minute', days=90)
 
 
             if len(df_1m) < 50:
