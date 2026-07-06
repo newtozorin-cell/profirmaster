@@ -1003,6 +1003,19 @@ def background_scanner():
 
 @app.route('/')
 def home():
+    try:
+
+        with open(TOKEN_FILE, 'r') as f:
+
+            data = json.load(f)
+
+            token_data['access_token'] = data.get('access_token')
+
+            token_data['token_time'] = data.get('token_time')
+
+    except Exception as e:
+
+        print(f"⚠ home(): token reload failed: {e}")
     ts = 'Token Active' if token_data['access_token'] else 'Token Expired'
     tt = token_data.get('token_time', 'Never')
 
