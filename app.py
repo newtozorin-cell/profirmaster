@@ -54,8 +54,6 @@ FYERS_REDIRECT_URL = 'https://web-production-904d3.up.railway.app/callback'
 # ========================================
 
 SCANNER_CONFIG = {
-
-SCANNER_CONFIG = {
     'NIFTY50': {
         'underlying': 'NIFTY',
         'exchange': 'NSE',
