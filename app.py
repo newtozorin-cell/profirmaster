@@ -2127,7 +2127,7 @@ def api_track():
 
             symbol = sig.get('symbol', '')
 
-            config = SCANNER_CONFIG.get(symbol, '')
+            config = SCANNER_CONFIG.get(symbol, {})
 
             if not config:
 
@@ -2140,7 +2140,9 @@ def api_track():
 
                 signal_time = pd.to_datetime(sig.get('scan_date')).replace(tzinfo=None)
 
-                df_1m = fetch_candles(config['instrument_key'], '1minute', days=10)
+                futures_sym, _, _ = get_current_futures_symbol(symbol)
+
+                df_1m = fetch_candles(futures_sym, '1minute', days=10)
 
 
                 if len(df_1m) == 0:
