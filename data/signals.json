@@ -2674,5 +2674,32 @@
     "lot_size": 10,
     "scanner_type": "atr_trailing",
     "outcome": "pending"
+  },
+  {
+    "_id": "NIFTY50_20260706_0915",
+    "symbol": "NIFTY50",
+    "direction": "BUY-LONG",
+    "model": "ATR-TS",
+    "entry": 24404.8,
+    "sl": 24313.35,
+    "target_1": 24541.97,
+    "target_2": 24633.43,
+    "target": 24633.43,
+    "risk_reward": "1:2.5",
+    "confidence": 0.8,
+    "grade": "A",
+    "grade_score": 85,
+    "scan_date": "2026-07-06T09:15:00+05:30",
+    "scan_time": "09:15",
+    "trail1": 24360.98,
+    "trail2": 24313.35,
+    "fast_atr": 33.71,
+    "slow_atr": 22.86,
+    "bar_color": "green",
+    "regime": "BULL",
+    "timeframe": "5m",
+    "lot_size": 30,
+    "scanner_type": "atr_trailing",
+    "outcome": "pending"
   }
 ]
