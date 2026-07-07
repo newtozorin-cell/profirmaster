@@ -1622,7 +1622,7 @@ def generate_signals():
 
         if brand_new:
 
-            notify_new_signals(brand_new)
+            notify_new_signals(signals)
 
     except Exception as e:
 
