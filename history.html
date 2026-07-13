@@ -314,7 +314,7 @@ function load(){
 
 // Sync new trades from the scanner page's localStorage
 function fetchFromRailway(){
-    fetch('https://web-production-904d3.up.railway.app/api/signals')
+    fetch('https://profirmaster-85br.onrender.com/api/signals')
         .then(function(r){return r.json();})
         .then(function(data){
             if(!data||!data.signals)return;
