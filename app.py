@@ -436,7 +436,8 @@ if not token_data['access_token'] and token_data['refresh_token']:
 
     print("⟳ No access token found on startup, attempting auto-refresh...")
 
-    auto_refresh_access_token()
+    #auto_refresh_access_token()
+    # SEBI: Fyers refresh token API disabled - manual /refresh required daily
 
 
 
