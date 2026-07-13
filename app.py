@@ -125,9 +125,9 @@ scan_lock = threading.Lock()
 
 # ========================================
 
-TELEGRAM_BOT_TOKEN = '8294412494:AAFtTeLwapxfpW_olOakE6DeEUeooDUzsew'
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 
-TELEGRAM_CHAT_IDS = ['1418527379', '878639389']
+TELEGRAM_CHAT_IDS = os.environ.get('TELEGRAM_CHAT_IDS', '1418527379,878639389').split(',')
 
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 
