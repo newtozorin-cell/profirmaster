@@ -44,7 +44,7 @@ FYERS_APP_ID     = os.environ.get('API_KEY', 'H2A8OFDH52-100')
 
 FYERS_SECRET_KEY = os.environ.get('API_SECRET', 'EV0ZS4K4FL')
 
-FYERS_REDIRECT_URL = 'https://web-production-904d3.up.railway.app/callback'
+FYERS_REDIRECT_URL = 'https://profirmaster-85br.onrender.com/callback'
 
 
 # ========================================
