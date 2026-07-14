@@ -303,15 +303,15 @@ var TT = {backgroundColor:'#0f1f3d',titleColor:'#e2e8f0',bodyColor:'#a0aec0',pad
 function showToast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast '+t+' show';setTimeout(function(){e.className='toast';},3000);}
 
 function load(){
-    // First sync any new trades from scanner page localStorage
     syncFromScanner();
     fetchFromRailway();
+    fetchHistoryFromServer();
     try{var r=localStorage.getItem('signalHistory');if(r)allH=JSON.parse(r).filter(function(s){return s.scanner_type==='atr_trailing';});}
     catch(e){allH=[];}
     allH.sort(function(a,b){return new Date(b.scan_date)-new Date(a.scan_date);});
     applyFilters();
 }
-
+    
 // Sync new trades from the scanner page's localStorage
 function fetchHistoryFromServer(){
     fetch(API_BASE+'/api/signals-history')
