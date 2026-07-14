@@ -1665,7 +1665,8 @@ def generate_signals():
     print(f"TOTAL SIGNALS: {len(signals)}")
 
     print(f"{'='*60}\n")
-
+    
+    save_signals_to_file(signals)
 
     return signals
 
