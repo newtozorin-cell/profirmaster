@@ -2093,6 +2093,25 @@ def api_signals():
 
         })
 
+@app.route('/api/signals-history')
+
+def api_signals_history():
+
+    signals = load_signals_from_file()
+    
+    signals.sort(key=lambda x: x.get('scan_date', ''), reverse=True)
+    
+    return jsonify({
+    
+        'status': 'success',
+        
+        'signals': signals,
+        
+        'count': len(signals),
+        
+        'timestamp': datetime.now(IST).isoformat()
+    })
+
 @app.route('/api/option-signals')
 
 def api_option_signals():
