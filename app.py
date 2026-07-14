@@ -442,7 +442,34 @@ if not token_data['access_token'] and token_data['refresh_token']:
     #auto_refresh_access_token()
     # SEBI: Fyers refresh token API disabled - manual /refresh required daily
 
+def save_signals_to_file(signals):
+    try:
+        existing = []
+        if os.path.exists(SIGNALS_HISTORY_FILE):
+            try:
+                with open(SIGNALS_HISTORY_FILE, 'r') as f:
+                    existing = json.load(f)
+            except:
+                existing = []
+        existing_ids = {s.get('_id') for s in existing}
+        new_signals = [s for s in signals if s.get('_id') not in existing_ids]
+        if new_signals:
+            existing.extend(new_signals)
+            existing = existing[-MAX_HISTORY:]
+            with open(SIGNALS_HISTORY_FILE, 'w') as f:
+                json.dump(existing, f)
+            print(f"Saved {len(new_signals)} new signals to history file")
+    except Exception as e:
+        print(f"Save signals error: {e}")
 
+def load_signals_from_file():
+    try:
+        if os.path.exists(SIGNALS_HISTORY_FILE):
+            with open(SIGNALS_HISTORY_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Load signals error: {e}")
+    return []
 
 def init_fyers():
 
