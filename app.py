@@ -1366,7 +1366,7 @@ def generate_signals():
             
             print(f"   Using futures: {futures_sym}")
             
-            df_1m = fetch_candles(futures_sym, '1minute', days=90)
+            df_1m = fetch_candles(futures_sym, '1minute', days=3)
 
 
             if len(df_1m) < 50:
@@ -2143,7 +2143,7 @@ def api_track():
 
                 futures_sym, _, _ = get_current_futures_symbol(symbol)
 
-                df_1m = fetch_candles(futures_sym, '1minute', days=10)
+                df_1m = fetch_candles(futures_sym, '1minute', days=3)
 
 
                 if len(df_1m) == 0:
