@@ -108,6 +108,9 @@ TOKEN_FILE = '/tmp/token.json'
 
 REFRESH_FILE = '/tmp/refresh_token.txt'
 
+SIGNALS_HISTORY_FILE = '/tmp/signals_history.json'
+MAX_HISTORY = 1000
+
 
 token_data = {'access_token': None, 'token_time': None, 'refresh_token': None}
 
