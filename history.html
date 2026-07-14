@@ -410,7 +410,7 @@ function syncFromScanner(){
 }
 
 // Poll for new trades every 3 seconds (in case scanner is open in another tab)
-setInterval(function(){syncFromScanner();fetchFromRailway();},30000);
+setInterval(function(){syncFromScanner();fetchFromRailway();fetchHistoryFromServer();},30000);
 
 function saveAll(){
     var r=localStorage.getItem('signalHistory');var all=[];
