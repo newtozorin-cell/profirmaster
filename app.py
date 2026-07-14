@@ -64,7 +64,7 @@ SCANNER_CONFIG = {
         'fast_mult': 1.3,
         'slow_period': 20,
         'slow_mult': 4.0,
-        'lot_size': 30,
+        'lot_size': 65,
         'strike_step': 50
     },
     'BANKNIFTY': {
@@ -90,7 +90,7 @@ SCANNER_CONFIG = {
         'fast_mult': 1.3,
         'slow_period': 20,
         'slow_mult': 4.0,
-        'lot_size': 10,
+        'lot_size': 20,
         'strike_step': 100
     }
 }
