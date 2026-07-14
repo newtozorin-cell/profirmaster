@@ -313,6 +313,30 @@ function load(){
 }
 
 // Sync new trades from the scanner page's localStorage
+function fetchHistoryFromServer(){
+    fetch(API_BASE+'/api/signals-history')
+        .then(function(r){return r.json();})
+        .then(function(data){
+            if(!data||!data.signals)return;
+            var existing=localStorage.getItem('signalHistory');
+            var all=existing?JSON.parse(existing):[];
+            var existingIds={};
+            all.forEach(function(s){if(s._id)existingIds[s._id]=true;});
+            var added=0;
+            data.signals.forEach(function(t){
+                t.scanner_type='atr_trailing';
+                if(!t._id)t._id=t.symbol+'_'+t.scan_date;
+                if(!existingIds[t._id]){all.push(t);existingIds[t._id]=true;added++;}
+            });
+            if(all.length>5000)all=all.slice(all.length-5000);
+            localStorage.setItem('signalHistory',JSON.stringify(all));
+            allH=all.filter(function(s){return s.scanner_type==='atr_trailing';});
+            allH.sort(function(a,b){return new Date(b.scan_date)-new Date(a.scan_date);});
+            applyFilters();
+            if(added>0)showToast('Loaded '+added+' historical trades from server','success');
+        })
+        .catch(function(e){console.log('History fetch error:',e);});
+}
 function fetchFromRailway(){
     fetch('https://profirmaster-85br.onrender.com/api/signals')
         .then(function(r){return r.json();})
