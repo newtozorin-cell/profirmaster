@@ -1687,6 +1687,8 @@ def generate_signals():
 
     try:
     
+        today_str = datetime.now(IST).strftime('%Y-%m-%d')
+        
         # Combine in-memory cache IDs with persisted notified IDs
         
         existing_all_ids = {s['_id'] for s in existing}
@@ -1695,9 +1697,9 @@ def generate_signals():
         
         all_known_ids = existing_all_ids | persisted_notified
         
-        # Only notify signals we've never seen before
+        # Only notify signals we haven't seen, AND only from TODAY
         
-        brand_new = [s for s in signals if s['_id'] not in all_known_ids]
+        brand_new = [s for s in signals if s.get('scan_date', '')[:10] == today_str and s['_id'] not in all_known_ids]
         
         if brand_new:
         
