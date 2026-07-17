@@ -8722,5 +8722,32 @@
     "lot_size": 65,
     "scanner_type": "atr_trailing",
     "outcome": "pending"
+  },
+  {
+    "_id": "BANKNIFTY_20260717_0915",
+    "symbol": "BANKNIFTY",
+    "direction": "BUY-LONG",
+    "model": "ATR-TS",
+    "entry": 57828.0,
+    "sl": 57602.02,
+    "target_1": 58166.97,
+    "target_2": 58392.95,
+    "target": 58392.95,
+    "risk_reward": "1:2.5",
+    "confidence": 0.8,
+    "grade": "A",
+    "grade_score": 85,
+    "scan_date": "2026-07-17T09:15:00+05:30",
+    "scan_time": "09:15",
+    "trail1": 57760.33,
+    "trail2": 57602.02,
+    "fast_atr": 70.26,
+    "slow_atr": 56.49,
+    "bar_color": "green",
+    "regime": "BULL",
+    "timeframe": "5m",
+    "lot_size": 30,
+    "scanner_type": "atr_trailing",
+    "outcome": "pending"
   }
 ]
