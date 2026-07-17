@@ -109,6 +109,9 @@ TOKEN_FILE = '/tmp/token.json'
 REFRESH_FILE = '/tmp/refresh_token.txt'
 
 SIGNALS_HISTORY_FILE = '/tmp/signals_history.json'
+
+NOTIFIED_IDS_FILE = '/tmp/notified_ids.json'
+
 MAX_HISTORY = 1000
 
 
