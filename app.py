@@ -254,12 +254,13 @@ def notify_new_signals(new_signals):
 
         )
 
-        for cid in TELEGRAM_CHAT_IDS:
-
+                for cid in TELEGRAM_CHAT_IDS:
             send_telegram(cid, msg)
-
-        save_signal_to_github(sig)    
-
+        save_signal_to_github(sig)
+        # Mark this signal as notified (persistent)
+        notified_ids = load_notified_ids()
+        notified_ids.add(sig.get('_id'))
+        save_notified_ids(notified_ids)
             
 
 # ========================================
