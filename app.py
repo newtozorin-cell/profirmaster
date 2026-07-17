@@ -474,6 +474,23 @@ def load_signals_from_file():
         print(f"Load signals error: {e}")
     return []
 
+
+def load_notified_ids():
+    try:
+        if os.path.exists(NOTIFIED_IDS_FILE):
+            with open(NOTIFIED_IDS_FILE, 'r') as f:
+                return set(json.load(f))
+    except Exception as e:
+        print(f"Load notified ids error: {e}")
+    return set()
+
+def save_notified_ids(ids_set):
+    try:
+        with open(NOTIFIED_IDS_FILE, 'w') as f:
+            json.dump(list(ids_set), f)
+    except Exception as e:
+        print(f"Save notified ids error: {e}")
+
 def init_fyers():
 
     """Initialize Fyers API client"""
