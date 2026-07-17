@@ -215,13 +215,15 @@ def save_signal_to_github(signal):
         
 
 def notify_new_signals(new_signals):
-
     if not new_signals:
-
         return
-
+    # Market hours guard: only notify between 09:15 and 15:30 IST
+    now_ist = datetime.now(IST)
+    t_val = now_ist.hour * 100 + now_ist.minute
+    if t_val < 915 or t_val > 1530:
+        print(f"[Telegram] Skipped: outside market hours ({now_ist.strftime('%H:%M IST')})")
+        return
     for sig in new_signals[:5]:
-
         dt_raw = sig.get('scan_date', '')
 
         try:
