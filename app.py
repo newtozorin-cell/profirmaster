@@ -487,13 +487,17 @@ def load_notified_ids():
         print(f"Load notified ids error: {e}")
     return set()
 
+
 def save_notified_ids(ids_set):
     try:
+        # Cap to 500 entries so file doesn't grow forever
+        if len(ids_set) > 500:
+            ids_set = set(list(ids_set)[-500:])
         with open(NOTIFIED_IDS_FILE, 'w') as f:
             json.dump(list(ids_set), f)
     except Exception as e:
         print(f"Save notified ids error: {e}")
-
+        
 def init_fyers():
 
     """Initialize Fyers API client"""
