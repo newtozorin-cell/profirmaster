@@ -1668,18 +1668,16 @@ def generate_signals():
     signals.sort(key=lambda x: x.get('scan_date', ''), reverse=True)
 
 
-    try:
-
+        try:
+        # Combine in-memory cache IDs with persisted notified IDs
         existing_all_ids = {s['_id'] for s in existing}
-
-        brand_new = [s for s in signals if s['_id'] not in existing_all_ids]
-
+        persisted_notified = load_notified_ids()
+        all_known_ids = existing_all_ids | persisted_notified
+        # Only notify signals we've never seen before
+        brand_new = [s for s in signals if s['_id'] not in all_known_ids]
         if brand_new:
-
-            notify_new_signals(signals)
-
+            notify_new_signals(brand_new)
     except Exception as e:
-
         print(f"Notify error: {e}")
 
 
