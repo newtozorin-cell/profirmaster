@@ -9073,5 +9073,32 @@
     "lot_size": 20,
     "scanner_type": "atr_trailing",
     "outcome": "pending"
+  },
+  {
+    "_id": "BANKNIFTY_20260715_1255",
+    "symbol": "BANKNIFTY",
+    "direction": "SELL-SHORT",
+    "model": "ATR-TS",
+    "entry": 57788.0,
+    "sl": 58103.15,
+    "target_1": 57315.27,
+    "target_2": 57000.12,
+    "target": 57000.12,
+    "risk_reward": "1:2.5",
+    "confidence": 0.8,
+    "grade": "A",
+    "grade_score": 85,
+    "scan_date": "2026-07-15T12:55:00+05:30",
+    "scan_time": "12:55",
+    "trail1": 57944.89,
+    "trail2": 58103.15,
+    "fast_atr": 120.68,
+    "slow_atr": 78.79,
+    "bar_color": "red",
+    "regime": "BEAR",
+    "timeframe": "5m",
+    "lot_size": 30,
+    "scanner_type": "atr_trailing",
+    "outcome": "pending"
   }
 ]
