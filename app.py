@@ -214,67 +214,96 @@ def save_signal_to_github(signal):
 
         
 
+# ========================================
+# TRADING CALENDAR (Quant filter)
+# Maps (weekday, hour-bucket) -> sizing rule
+#   'sized_up' = "More Than 1 Lot is fine"
+#   'normal'   = (no extra sizing line)
+#   'small'    = "1 lot only"
+# Missing key = AVOID slot -> signal is NOT sent to Telegram
+# Buckets: H1 09:15-10:15 | H2 10:15-11:15 | H3 11:15-12:15
+#         H4 12:15-13:15 | H5 13:15-14:15 | H6 14:15-15:30
+# ========================================
+TRADE_CALENDAR = {
+    0: {'H1': 'small', 'H2': 'small', 'H4': 'small', 'H6': 'small'},   # Mon
+    1: {'H4': 'sized_up', 'H6': 'normal'},                              # Tue
+    2: {'H1': 'sized_up', 'H2': 'sized_up', 'H3': 'sized_up',          # Wed (all)
+        'H4': 'sized_up', 'H5': 'sized_up', 'H6': 'sized_up'},
+    3: {'H1': 'normal', 'H4': 'normal', 'H6': 'normal'},                # Thu
+    4: {'H1': 'sized_up', 'H3': 'normal', 'H4': 'normal'},              # Fri
+}
+
+
+def get_signal_bucket(dt):
+    """Return H1-H6 bucket for dt, or None if outside market hours."""
+    total = dt.hour * 60 + dt.minute
+    if 555  <= total <= 614: return 'H1'
+    if 615  <= total <= 674: return 'H2'
+    if 675  <= total <= 734: return 'H3'
+    if 735  <= total <= 794: return 'H4'
+    if 795  <= total <= 854: return 'H5'
+    if 855  <= total <= 930: return 'H6'
+    return None
+
+
 def notify_new_signals(new_signals):
     if not new_signals:
         return
     # Market hours guard: only notify 09:15 to 15:30 IST
-    
     now_ist = datetime.now(IST)
-    
     t_val = now_ist.hour * 100 + now_ist.minute
-    
     if t_val < 915 or t_val > 1530:
-        
         print(f"[Telegram] Skipped: outside market hours ({now_ist.strftime('%H:%M IST')})")
-        
         return
-    
+
     for sig in new_signals[:5]:
-        
         dt_raw = sig.get('scan_date', '')
-
         try:
-
             dt_obj = datetime.fromisoformat(dt_raw)
-
             dt_str = dt_obj.strftime('%Y-%m-%d %H:%M')
-
         except:
-
+            dt_obj = None
             dt_str = dt_raw
 
+        # Calendar filter: skip signals in AVOID slots
+        if dt_obj is not None:
+            wkday = dt_obj.weekday()  # 0=Mon ... 6=Sun
+            bucket = get_signal_bucket(dt_obj)
+            sizing = TRADE_CALENDAR.get(wkday, {}).get(bucket)
+            if sizing is None:
+                wd_name = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][wkday]
+                print(f"[Telegram] Skipped {sig.get('_id')}: AVOID slot ({wd_name} {bucket})")
+                continue
+        else:
+            sizing = 'normal'
+
+        # Sizing line
+        if sizing == 'small':
+            sizing_line = "\n💼 <b>Sizing: 1 lot only</b>"
+        elif sizing == 'sized_up':
+            sizing_line = "\n💼 <b>Sizing: More Than 1 Lot is fine</b>"
+        else:
+            sizing_line = ""
+
         msg = (
-
             f"📊 <b>{sig.get('symbol','?')}</b>\n"
-
             f"📅 {dt_str}\n"
-
             f"🔀 Dir: {sig.get('direction','?')}\n"
-
             f"🎯 Entry: {sig.get('entry','?')}\n"
-
             f"🛑 SL: {sig.get('sl','?')}\n"
-
             f"✅ T1: {sig.get('target_1','?')}\n"
-
             f"🚀 T2: {sig.get('target_2','?')}"
-
+            f"{sizing_line}"
         )
 
         for cid in TELEGRAM_CHAT_IDS:
-        
             send_telegram(cid, msg)
-        
+
         save_signal_to_github(sig)
-        
         # Mark this signal as notified (persistent across restarts)
-        
         notified_ids = load_notified_ids()
-        
         notified_ids.add(sig.get('_id'))
-        
-        save_notified_ids(notified_ids)
-            
+        save_notified_ids(notified_ids)            
 
 # ========================================
 
