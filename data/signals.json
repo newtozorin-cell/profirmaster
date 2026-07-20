@@ -9451,5 +9451,32 @@
     "lot_size": 65,
     "scanner_type": "atr_trailing",
     "outcome": "pending"
+  },
+  {
+    "_id": "SENSEX_20260720_1255",
+    "symbol": "SENSEX",
+    "direction": "BUY-LONG",
+    "model": "ATR-TS",
+    "entry": 77580.05,
+    "sl": 77373.24,
+    "target_1": 77890.26,
+    "target_2": 78097.07,
+    "target": 78097.07,
+    "risk_reward": "1:2.5",
+    "confidence": 0.8,
+    "grade": "A",
+    "grade_score": 85,
+    "scan_date": "2026-07-20T12:55:00+05:30",
+    "scan_time": "12:55",
+    "trail1": 77492.93,
+    "trail2": 77373.24,
+    "fast_atr": 67.01,
+    "slow_atr": 51.7,
+    "bar_color": "green",
+    "regime": "BULL",
+    "timeframe": "5m",
+    "lot_size": 20,
+    "scanner_type": "atr_trailing",
+    "outcome": "pending"
   }
 ]
