@@ -215,32 +215,22 @@ def save_signal_to_github(signal):
         
 
 # ========================================
-# TELEGRAM ALLOWED SLOTS
-# Only signals matching (weekday, hour-bucket, symbol) get sent.
-# Anything else is silently skipped.
-# weekday: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
+# TRADING CALENDAR (Quant filter)
+# Maps (weekday, hour-bucket) -> sizing rule
+#   'sized_up' = "More Than 1 Lot is fine"
+#   'normal'   = (no extra sizing line)
+#   'small'    = "1 lot only"
+# Missing key = AVOID slot -> signal is NOT sent to Telegram
 # Buckets: H1 09:15-10:15 | H2 10:15-11:15 | H3 11:15-12:15
 #         H4 12:15-13:15 | H5 13:15-14:15 | H6 14:15-15:30
 # ========================================
-ALLOWED_SLOTS = {
-    # Monday H4 (12:15-13:15)
-    (0, 'H4', 'NIFTY50'),
-    (0, 'H4', 'SENSEX'),
-    # Tuesday H4 (12:15-13:15)
-    (1, 'H4', 'NIFTY50'),
-    (1, 'H4', 'SENSEX'),
-    # Wednesday H1 (09:15-10:15)
-    (2, 'H1', 'NIFTY50'),
-    (2, 'H1', 'SENSEX'),
-    # Wednesday H5 (13:15-14:15)
-    (2, 'H5', 'BANKNIFTY'),
-    # Thursday H1 (09:15-10:15)
-    (3, 'H1', 'NIFTY50'),
-    (3, 'H1', 'SENSEX'),
-    # Thursday H6 (14:15-15:30)
-    (3, 'H6', 'BANKNIFTY'),
-    # Friday H1 (09:15-10:15)
-    (4, 'H1', 'BANKNIFTY'),
+TRADE_CALENDAR = {
+    0: {'H1': 'small', 'H2': 'small', 'H4': 'small', 'H6': 'small'},   # Mon
+    1: {'H4': 'sized_up', 'H6': 'normal'},                              # Tue
+    2: {'H1': 'sized_up', 'H2': 'sized_up', 'H3': 'sized_up',          # Wed (all)
+        'H4': 'sized_up', 'H5': 'sized_up', 'H6': 'sized_up'},
+    3: {'H1': 'normal', 'H4': 'normal', 'H6': 'normal'},                # Thu
+    4: {'H1': 'sized_up', 'H3': 'normal', 'H4': 'normal'},              # Fri
 }
 
 
@@ -272,17 +262,28 @@ def notify_new_signals(new_signals):
             dt_obj = datetime.fromisoformat(dt_raw)
             dt_str = dt_obj.strftime('%Y-%m-%d %H:%M')
         except:
-            print(f"[Telegram] Skipped {sig.get('_id')}: cannot parse scan_date")
-            continue
+            dt_obj = None
+            dt_str = dt_raw
 
-        # Allowed-slot filter: skip signals not in ALLOWED_SLOTS
-        wkday = dt_obj.weekday()  # 0=Mon ... 6=Sun
-        bucket = get_signal_bucket(dt_obj)
-        symbol = sig.get('symbol', '')
-        if bucket is None or (wkday, bucket, symbol) not in ALLOWED_SLOTS:
-            wd_name = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][wkday]
-            print(f"[Telegram] Skipped {sig.get('_id')}: not in allowed slots ({wd_name} {bucket} {symbol})")
-            continue
+        # Calendar filter: skip signals in AVOID slots
+        if dt_obj is not None:
+            wkday = dt_obj.weekday()  # 0=Mon ... 6=Sun
+            bucket = get_signal_bucket(dt_obj)
+            sizing = TRADE_CALENDAR.get(wkday, {}).get(bucket)
+            if sizing is None:
+                wd_name = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][wkday]
+                print(f"[Telegram] Skipped {sig.get('_id')}: AVOID slot ({wd_name} {bucket})")
+                continue
+        else:
+            sizing = 'normal'
+
+        # Sizing line
+        if sizing == 'small':
+            sizing_line = "\n💼 <b>Sizing: 1 lot only</b>"
+        elif sizing == 'sized_up':
+            sizing_line = "\n💼 <b>Sizing: More Than 1 Lot is fine</b>"
+        else:
+            sizing_line = ""
 
         msg = (
             f"📊 <b>{sig.get('symbol','?')}</b>\n"
@@ -292,6 +293,7 @@ def notify_new_signals(new_signals):
             f"🛑 SL: {sig.get('sl','?')}\n"
             f"✅ T1: {sig.get('target_1','?')}\n"
             f"🚀 T2: {sig.get('target_2','?')}"
+            f"{sizing_line}"
         )
 
         for cid in TELEGRAM_CHAT_IDS:
