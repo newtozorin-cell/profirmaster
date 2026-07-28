@@ -221,8 +221,8 @@ def save_signal_to_github(signal):
 #   'normal'   = (no extra sizing line)
 #   'small'    = "1 lot only"
 # Missing key = AVOID slot -> signal is NOT sent to Telegram
-# Buckets: H1 09:15-10:15 | H2 10:15-11:15 | H3 11:15-12:15
-#         H4 12:15-13:15 | H5 13:15-14:15 | H6 14:15-15:30
+# Buckets: H1 09:15-10:15 | H2 10:16-11:15 | H3 11:16-12:15
+#         H4 12:16-13:15 | H5 13:16-14:15 | H6 14:16-15:30
 # ========================================
 TRADE_CALENDAR = {
     0: {'H1': 'small', 'H2': 'small', 'H4': 'small', 'H6': 'small'},   # Mon
