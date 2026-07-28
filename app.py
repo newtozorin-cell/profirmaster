@@ -235,14 +235,18 @@ TRADE_CALENDAR = {
 
 
 def get_signal_bucket(dt):
-    """Return H1-H6 bucket for dt, or None if outside market hours."""
+    """Return H1-H6 bucket for dt, or None if outside market hours.
+    Buckets end at the ":15" minute (inclusive) and the next starts at ":16".
+    H1 09:15-10:15 | H2 10:16-11:15 | H3 11:16-12:15
+    H4 12:16-13:15 | H5 13:16-14:15 | H6 14:16-15:30
+    """
     total = dt.hour * 60 + dt.minute
-    if 555  <= total <= 614: return 'H1'
-    if 615  <= total <= 674: return 'H2'
-    if 675  <= total <= 734: return 'H3'
-    if 735  <= total <= 794: return 'H4'
-    if 795  <= total <= 854: return 'H5'
-    if 855  <= total <= 930: return 'H6'
+    if 555 <= total <= 615: return 'H1'  # 09:15-10:15
+    if 616 <= total <= 675: return 'H2'  # 10:16-11:15
+    if 676 <= total <= 735: return 'H3'  # 11:16-12:15
+    if 736 <= total <= 795: return 'H4'  # 12:16-13:15
+    if 796 <= total <= 855: return 'H5'  # 13:16-14:15
+    if 856 <= total <= 930: return 'H6'  # 14:16-15:30
     return None
 
 
