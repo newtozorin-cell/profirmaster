@@ -1466,9 +1466,13 @@ def generate_signals():
             
             df_1m = fetch_candles(futures_sym, '1minute', days=3)
 
+            opening_signals = scan_opening_signal_1min(symbol, config, df_1m.copy())
+            if opening_signals:
+                signals.extend(opening_signals)
+                print(f"   Opening 1-min signal(s): {len(opening_signals)}")
 
             if len(df_1m) < 50:
-
+                
                 print(f"Insufficient candles: {len(df_1m)}")
 
                 continue
