@@ -1465,6 +1465,36 @@ def scan_opening_signal_1min(symbol, config, df_1m):
         target_1 = round(entry + risk * 1.5, 2) if direction == 'BUY-LONG' else round(entry - risk * 1.5, 2)
         target_2 = round(entry + risk * 2.5, 2) if direction == 'BUY-LONG' else round(entry - risk * 2.5, 2)
 
+        reward = abs(target_2 - entry)
+        rr = round(reward / risk, 2) if risk else 0
+
+        confidence = 0.5
+        bar_c = row.get('bar_color', 'neutral')
+        if direction == 'BUY-LONG':
+            if bar_c == 'green':
+                confidence += 0.2
+            elif bar_c == 'blue':
+                confidence += 0.1
+        else:
+            if bar_c == 'red':
+                confidence += 0.2
+            elif bar_c == 'yellow':
+                confidence += 0.1
+        if rr >= 2:
+            confidence += 0.1
+        if rr >= 3:
+            confidence += 0.1
+        confidence = min(confidence, 0.95)
+
+        if confidence >= 0.8:
+            grade, grade_score = 'A+', 95
+        elif confidence >= 0.7:
+            grade, grade_score = 'A', 85
+        elif confidence >= 0.6:
+            grade, grade_score = 'B', 70
+        else:
+            grade, grade_score = 'C', 55
+
         signal_dt = pd.to_datetime(row['datetime'])
         if signal_dt.tzinfo is None:
             signal_dt = IST.localize(signal_dt)
@@ -1479,8 +1509,16 @@ def scan_opening_signal_1min(symbol, config, df_1m):
             'target_1': target_1,
             'target_2': target_2,
             'target': target_2,
+            'risk_reward': f"1:{rr}",
+            'confidence': round(confidence, 2),
+            'grade': grade,
+            'grade_score': grade_score,
             'scan_date': signal_dt.isoformat(),
             'scan_time': signal_dt.strftime('%H:%M'),
+            'trail1': round(float(row['trail1']), 2),
+            'trail2': trail2,
+            'bar_color': bar_c,
+            'regime': row.get('regime', 'UNKNOWN'),
             'timeframe': '1m (opening only)',
             'lot_size': config['lot_size'],
             'scanner_type': 'atr_trailing_1min_open',
