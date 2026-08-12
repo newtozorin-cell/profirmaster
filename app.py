@@ -1415,24 +1415,19 @@ def resample_candles(df_1m, minutes):
 
 
     r = df.resample(f'{minutes}min').agg(
-
         open=('open','first'), 
-
         high=('high','max'), 
-
         low=('low','min'), 
-
         close=('close','last'), 
-
         volume=('volume','sum')
-
     ).dropna().reset_index()
 
+    now = datetime.now(IST).replace(tzinfo=None)
+    r = r[r['datetime'] + timedelta(minutes=minutes) <= now]
 
     t = r['datetime'].dt.hour * 100 + r['datetime'].dt.minute
 
     return r[(t >= 915) & (t <= 1530)].reset_index(drop=True)
-
 
 
 # ========================================
