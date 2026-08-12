@@ -1436,7 +1436,58 @@ def resample_candles(df_1m, minutes):
 
 # ========================================
 
+def scan_opening_signal_1min(symbol, config, df_1m):
+    """Only the 09:15 candle uses a 1-min Supertrend cross (catches the volatile
+    opening move early). Every other signal of the day still uses the normal
+    5-min cross via generate_signals()."""
+    results = []
+    if len(df_1m) < max(config['fast_period'], config['slow_period']) + 10:
+        return results
 
+    df = calculate_atr_trailing(
+        df_1m,
+        config['fast_period'], config['fast_mult'],
+        config['slow_period'], config['slow_mult']
+    )
+
+    t = df['datetime'].dt.hour * 100 + df['datetime'].dt.minute
+    opening = df[(t >= 915) & (t <= 916)]  # only the 09:15 candle
+
+    for _, row in opening.iterrows():
+        if not (row.get('buy_signal', False) or row.get('sell_signal', False)):
+            continue
+        direction = 'BUY-LONG' if row['buy_signal'] else 'SELL-SHORT'
+        entry = round(float(row['close']), 2)
+        trail2 = round(float(row['trail2']), 2)
+        risk = (entry - trail2) if direction == 'BUY-LONG' else (trail2 - entry)
+        if risk == 0:
+            continue
+        target_1 = round(entry + risk * 1.5, 2) if direction == 'BUY-LONG' else round(entry - risk * 1.5, 2)
+        target_2 = round(entry + risk * 2.5, 2) if direction == 'BUY-LONG' else round(entry - risk * 2.5, 2)
+
+        signal_dt = pd.to_datetime(row['datetime'])
+        if signal_dt.tzinfo is None:
+            signal_dt = IST.localize(signal_dt)
+
+        results.append({
+            '_id': f"{symbol}_{signal_dt.strftime('%Y%m%d_%H%M')}_1MIN",
+            'symbol': symbol,
+            'direction': direction,
+            'model': 'ATR-TS-1MIN-OPEN',
+            'entry': entry,
+            'sl': trail2,
+            'target_1': target_1,
+            'target_2': target_2,
+            'target': target_2,
+            'scan_date': signal_dt.isoformat(),
+            'scan_time': signal_dt.strftime('%H:%M'),
+            'timeframe': '1m (opening only)',
+            'lot_size': config['lot_size'],
+            'scanner_type': 'atr_trailing_1min_open',
+            'outcome': 'pending'
+        })
+    return results
+    
 def generate_signals():
 
     now = datetime.now(IST)
