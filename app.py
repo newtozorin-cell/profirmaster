@@ -1451,7 +1451,7 @@ def scan_opening_signal_1min(symbol, config, df_1m):
     )
 
     t = df['datetime'].dt.hour * 100 + df['datetime'].dt.minute
-    opening = df[(t >= 915) & (t <= 916)]  # only the 09:15 candle
+    opening = df[t == 915]  # ONLY the 09:15 candle - never any other minute
 
     for _, row in opening.iterrows():
         if not (row.get('buy_signal', False) or row.get('sell_signal', False)):
