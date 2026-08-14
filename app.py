@@ -1556,6 +1556,7 @@ def generate_signals():
             df_1m = fetch_candles(futures_sym, '1minute', days=3)
 
             opening_signals = scan_opening_signal_1min(symbol, config, df_1m.copy())
+            opening_fired_today = len(opening_signals) > 0
             if opening_signals:
                 signals.extend(opening_signals)
                 print(f"   Opening 1-min signal(s): {len(opening_signals)}")
@@ -1565,7 +1566,6 @@ def generate_signals():
                 print(f"Insufficient candles: {len(df_1m)}")
 
                 continue
-
 
             df = resample_candles(df_1m, config['resample_minutes'])
 
@@ -1609,9 +1609,12 @@ def generate_signals():
 
                     continue
 
+                row_hhmm = row['datetime'].hour * 100 + row['datetime'].minute
+                if row_hhmm == 915 and opening_fired_today:
+                    continue  # already caught by the 1-min opening scan - don't fire again
+
 
                 direction = 'BUY-LONG' if row['buy_signal'] else 'SELL-SHORT'
-
                 entry = round(float(row['close']), 2)
 
                 trail2 = round(float(row['trail2']), 2)
