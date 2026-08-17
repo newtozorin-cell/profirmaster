@@ -215,39 +215,60 @@ def save_signal_to_github(signal):
         
 
 # ========================================
-# TRADING CALENDAR (Quant filter)
-# Maps (weekday, hour-bucket) -> sizing rule
-#   'sized_up' = "More Than 1 Lot is fine"
-#   'normal'   = (no extra sizing line)
-#   'small'    = "1 lot only"
-# Missing key = AVOID slot -> signal is NOT sent to Telegram
-# Buckets: H1 09:15-10:15 | H2 10:16-11:15 | H3 11:16-12:15
-#         H4 12:16-13:15 | H5 13:16-14:15 | H6 14:16-15:30
+# TRADING SCHEDULE (Per-symbol windows & directions)
+# Windows are inclusive on start AND end minute.
+#   directions: 'LONG' | 'SHORT' | 'LONG_SHORT'
+# Timeframe for cross detection:
+#   09:15 - 09:20  -> 1-min candle (quick entry)
+#   09:21 - 15:39  -> 5-min candle
+# Telegram notifications are gated by this schedule
+# (signals outside their symbol's allowed windows are NOT sent).
 # ========================================
-TRADE_CALENDAR = {
-    0: {'H1': 'small', 'H2': 'small', 'H4': 'small', 'H6': 'small'},   # Mon
-    1: {'H4': 'sized_up', 'H6': 'normal'},                              # Tue
-    2: {'H1': 'sized_up', 'H2': 'sized_up', 'H3': 'sized_up',          # Wed (all)
-        'H4': 'sized_up', 'H5': 'sized_up', 'H6': 'sized_up'},
-    3: {'H1': 'normal', 'H4': 'normal', 'H6': 'normal'},                # Thu
-    4: {'H1': 'sized_up', 'H3': 'normal', 'H4': 'normal'},              # Fri
+TRADE_SCHEDULE = {
+    'BANKNIFTY': [
+        {'start': '09:15', 'end': '10:30', 'directions': 'LONG_SHORT'},
+        {'start': '11:45', 'end': '13:00', 'directions': 'LONG_SHORT'},
+        {'start': '15:00', 'end': '15:15', 'directions': 'LONG'},
+    ],
+    'NIFTY50': [
+        {'start': '09:15', 'end': '10:30', 'directions': 'LONG'},
+        {'start': '11:45', 'end': '13:00', 'directions': 'SHORT'},
+    ],
+    'SENSEX': [
+        {'start': '09:15', 'end': '10:30', 'directions': 'SHORT'},
+    ],
 }
 
 
-def get_signal_bucket(dt):
-    """Return H1-H6 bucket for dt, or None if outside market hours.
-    Buckets end at the ":15" minute (inclusive) and the next starts at ":16".
-    H1 09:15-10:15 | H2 10:16-11:15 | H3 11:16-12:15
-    H4 12:16-13:15 | H5 13:16-14:15 | H6 14:16-15:30
-    """
-    total = dt.hour * 60 + dt.minute
-    if 555 <= total <= 615: return 'H1'  # 09:15-10:15
-    if 616 <= total <= 675: return 'H2'  # 10:16-11:15
-    if 676 <= total <= 735: return 'H3'  # 11:16-12:15
-    if 736 <= total <= 795: return 'H4'  # 12:16-13:15
-    if 796 <= total <= 855: return 'H5'  # 13:16-14:15
-    if 856 <= total <= 930: return 'H6'  # 14:16-15:30
+def _to_minutes(hhmm):
+    h, m = hhmm.split(':')
+    return int(h) * 60 + int(m)
+
+
+def get_trade_window(symbol, dt):
+    """Return the matching window dict for (symbol, dt), or None if outside any window."""
+    if dt is None:
+        return None
+    hm = dt.hour * 60 + dt.minute
+    for w in TRADE_SCHEDULE.get(symbol, []):
+        if _to_minutes(w['start']) <= hm <= _to_minutes(w['end']):
+            return w
     return None
+
+
+def direction_allowed(symbol, dt, direction):
+    """direction is 'BUY-LONG' or 'SELL-SHORT'. Returns True iff the direction
+    is permitted in the symbol's window covering dt."""
+    w = get_trade_window(symbol, dt)
+    if w is None:
+        return False
+    if w['directions'] == 'LONG_SHORT':
+        return True
+    if w['directions'] == 'LONG':
+        return direction == 'BUY-LONG'
+    if w['directions'] == 'SHORT':
+        return direction == 'SELL-SHORT'
+    return False
 
 
 def notify_new_signals(new_signals):
@@ -269,25 +290,16 @@ def notify_new_signals(new_signals):
             dt_obj = None
             dt_str = dt_raw
 
-        # Calendar filter: skip signals in AVOID slots
-        if dt_obj is not None:
-            wkday = dt_obj.weekday()  # 0=Mon ... 6=Sun
-            bucket = get_signal_bucket(dt_obj)
-            sizing = TRADE_CALENDAR.get(wkday, {}).get(bucket)
-            if sizing is None:
-                wd_name = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][wkday]
-                print(f"[Telegram] Skipped {sig.get('_id')}: AVOID slot ({wd_name} {bucket})")
-                continue
-        else:
-            sizing = 'normal'
-
-        # Sizing line
-        if sizing == 'small':
-            sizing_line = "\n💼 <b>Sizing: 1 lot only</b>"
-        elif sizing == 'sized_up':
-            sizing_line = "\n💼 <b>Sizing: More Than 1 Lot is fine</b>"
-        else:
-            sizing_line = ""
+        # Per-symbol trading-window filter (also enforces direction)
+        symbol = sig.get('symbol', '')
+        direction = sig.get('direction', '')
+        if dt_obj is not None and not direction_allowed(symbol, dt_obj, direction):
+            win = get_trade_window(symbol, dt_obj)
+            if win is None:
+                print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} outside trading window at {dt_obj.strftime('%H:%M')}")
+            else:
+                print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} {win['directions']} only at {dt_obj.strftime('%H:%M')} (got {direction})")
+            continue
 
         msg = (
             f"📊 <b>{sig.get('symbol','?')}</b>\n"
@@ -297,7 +309,6 @@ def notify_new_signals(new_signals):
             f"🛑 SL: {sig.get('sl','?')}\n"
             f"✅ T1: {sig.get('target_1','?')}\n"
             f"🚀 T2: {sig.get('target_2','?')}"
-            f"{sizing_line}"
         )
 
         for cid in TELEGRAM_CHAT_IDS:
@@ -1437,9 +1448,9 @@ def resample_candles(df_1m, minutes):
 # ========================================
 
 def scan_opening_signal_1min(symbol, config, df_1m):
-    """Only the 09:15 candle uses a 1-min Supertrend cross (catches the volatile
-    opening move early). Every other signal of the day still uses the normal
-    5-min cross via generate_signals()."""
+    """Opening window 09:15-09:20 uses 1-min Supertrend cross (catches the
+    volatile opening move early for quick entry). From 09:21 onwards the
+    normal 5-min cross takes over via generate_signals()."""
     results = []
     if len(df_1m) < max(config['fast_period'], config['slow_period']) + 10:
         return results
@@ -1451,7 +1462,7 @@ def scan_opening_signal_1min(symbol, config, df_1m):
     )
 
     t = df['datetime'].dt.hour * 100 + df['datetime'].dt.minute
-    opening = df[t == 915]  # ONLY the 09:15 candle - never any other minute
+    opening = df[(t >= 915) & (t <= 920)]  # 09:15-09:20 — 1-min quick-entry window
 
     for _, row in opening.iterrows():
         if not (row.get('buy_signal', False) or row.get('sell_signal', False)):
