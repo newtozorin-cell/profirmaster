@@ -22,9 +22,9 @@ app.secret_key = os.environ.get('FLASK_SECRET', 'atr-scanner-secret-key-2024')
 # ========================================
 # FYERS CREDENTIALS (Your Fresh Credentials)
 # ========================================
-FYERS_APP_ID     = os.environ.get('API_KEY', 'H2A8OFDH52-100')
-FYERS_SECRET_KEY = os.environ.get('API_SECRET', 'EV0ZS4K4FL')
-FYERS_REDIRECT_URL = 'https://profirmaster-85br.onrender.com/callback'
+FYERS_APP_ID     = os.environ.get('API_KEY', 'ABC-100')
+FYERS_SECRET_KEY = os.environ.get('API_SECRET', 'ABC')
+FYERS_REDIRECT_URL = 'https://profirmaster-ABC.com/callback'
 
 
 # ========================================
@@ -35,6 +35,7 @@ SCANNER_CONFIG = {
         'underlying': 'NIFTY',
         'exchange': 'NSE',
         'expiry_weekday': 1,        # Tuesday
+        'expiry_day': None,         # None = use weekday rule
         'option_key': 'NSE:NIFTY50-INDEX',
         'resample_minutes': 5,
         'fast_period': 5,
@@ -42,12 +43,17 @@ SCANNER_CONFIG = {
         'slow_period': 20,
         'slow_mult': 4.0,
         'lot_size': 65,
-        'strike_step': 50
+        'strike_step': 50,
+        'market_open': 915,         # 09:15 IST
+        'market_close': 1530,       # 15:30 IST
+        'telegram_enabled': True,
+        'options_enabled': True,
     },
     'BANKNIFTY': {
         'underlying': 'BANKNIFTY',
         'exchange': 'NSE',
         'expiry_weekday': 1,        # Tuesday
+        'expiry_day': None,
         'option_key': 'NSE:NIFTYBANK-INDEX',
         'resample_minutes': 5,
         'fast_period': 5,
@@ -55,12 +61,17 @@ SCANNER_CONFIG = {
         'slow_period': 20,
         'slow_mult': 4.0,
         'lot_size': 30,
-        'strike_step': 100
+        'strike_step': 100,
+        'market_open': 915,
+        'market_close': 1530,
+        'telegram_enabled': True,
+        'options_enabled': True,
     },
     'SENSEX': {
         'underlying': 'SENSEX',
         'exchange': 'BSE',
         'expiry_weekday': 3,        # Thursday
+        'expiry_day': None,
         'option_key': 'BSE:SENSEX-INDEX',
         'resample_minutes': 5,
         'fast_period': 5,
@@ -68,7 +79,29 @@ SCANNER_CONFIG = {
         'slow_period': 20,
         'slow_mult': 4.0,
         'lot_size': 20,
-        'strike_step': 100
+        'strike_step': 100,
+        'market_open': 915,
+        'market_close': 1530,
+        'telegram_enabled': True,
+        'options_enabled': True,
+    },
+    'GOLDPETAL': {
+        'underlying': 'GOLDPETAL',
+        'exchange': 'MCX',
+        'expiry_weekday': None,
+        'expiry_day': -1,           # -1 = last calendar day of contract month
+        'option_key': 'MCX:GOLDPETAL',
+        'resample_minutes': 5,
+        'fast_period': 5,
+        'fast_mult': 1.3,
+        'slow_period': 20,
+        'slow_mult': 4.0,
+        'lot_size': 1,              # 1 gram (MCX GOLDPETAL trading unit)
+        'strike_step': 1,           # Not applicable for futures, placeholder
+        'market_open': 900,         # 09:00 IST (MCX commodity open)
+        'market_close': 2359,       # 23:59 IST (MCX commodity close ~midnight)
+        'telegram_enabled': False,  # No Telegram for now
+        'options_enabled': False,   # Skip option chain for commodity
     }
 }
 
@@ -201,14 +234,15 @@ def direction_allowed(symbol, dt, direction):
 def notify_new_signals(new_signals):
     if not new_signals:
         return
-    # Market hours guard: only notify 09:15 to 15:30 IST
+
     now_ist = datetime.now(IST)
     t_val = now_ist.hour * 100 + now_ist.minute
-    if t_val < 915 or t_val > 1530:
-        print(f"[Telegram] Skipped: outside market hours ({now_ist.strftime('%H:%M IST')})")
-        return
+    in_equity_hours = 915 <= t_val <= 1530
 
     for sig in new_signals[:5]:
+        symbol = sig.get('symbol', '')
+        config = SCANNER_CONFIG.get(symbol, {})
+
         dt_raw = sig.get('scan_date', '')
         try:
             dt_obj = datetime.fromisoformat(dt_raw)
@@ -217,15 +251,32 @@ def notify_new_signals(new_signals):
             dt_obj = None
             dt_str = dt_raw
 
-        # Per-symbol trading-window filter (also enforces direction)
-        symbol = sig.get('symbol', '')
+        # Trading-window filter: applies only to symbols WITH TRADE_SCHEDULE entries.
+        # Symbols without a schedule (e.g. GOLDPETAL) have no time restrictions.
         direction = sig.get('direction', '')
-        if dt_obj is not None and not direction_allowed(symbol, dt_obj, direction):
-            win = get_trade_window(symbol, dt_obj)
-            if win is None:
-                print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} outside trading window at {dt_obj.strftime('%H:%M')}")
-            else:
-                print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} {win['directions']} only at {dt_obj.strftime('%H:%M')} (got {direction})")
+        if symbol in TRADE_SCHEDULE:
+            if dt_obj is not None and not direction_allowed(symbol, dt_obj, direction):
+                win = get_trade_window(symbol, dt_obj)
+                if win is None:
+                    print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} outside trading window at {dt_obj.strftime('%H:%M')}")
+                else:
+                    print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} {win['directions']} only at {dt_obj.strftime('%H:%M')} (got {direction})")
+                continue
+
+        # Save + mark notified (always, regardless of Telegram)
+        save_signal_to_github(sig)
+        notified_ids = load_notified_ids()
+        notified_ids.add(sig.get('_id'))
+        save_notified_ids(notified_ids)
+
+        # Telegram gate: per-symbol enable flag
+        if not config.get('telegram_enabled', True):
+            print(f"[Scanner] {symbol} signal saved (Telegram disabled): {sig.get('_id')}")
+            continue
+
+        # Equity market-hours guard for Telegram (09:15 to 15:30 IST)
+        if not in_equity_hours:
+            print(f"[Telegram] Skipped {sig.get('_id')}: outside equity market hours ({now_ist.strftime('%H:%M IST')})")
             continue
 
         msg = (
@@ -240,12 +291,6 @@ def notify_new_signals(new_signals):
 
         for cid in TELEGRAM_CHAT_IDS:
             send_telegram(cid, msg)
-
-        save_signal_to_github(sig)
-        # Mark this signal as notified (persistent across restarts)
-        notified_ids = load_notified_ids()
-        notified_ids.add(sig.get('_id'))
-        save_notified_ids(notified_ids)
 
 
 # ========================================
@@ -450,8 +495,29 @@ def last_weekday_of_month(year, month, weekday):
 
 
 def get_monthly_expiry(symbol, year, month):
-    """Per-symbol expiry weekday. NIFTY/BANKNIFTY = Tue, SENSEX = Thu."""
+    """Per-symbol expiry rule.
+    - NIFTY/BANKNIFTY/SENSEX: weekday-based (last Tue/Thu of month).
+    - MCX commodities (e.g. GOLDPETAL): expiry_day=-1 means last calendar day of month.
+    """
     cfg = SCANNER_CONFIG.get(symbol, {})
+    expiry_day = cfg.get('expiry_day')
+
+    # Date-based expiry rule (e.g. GOLDPETAL: last calendar day of month)
+    if expiry_day is not None:
+        last_day = calendar.monthrange(year, month)[1]
+        if expiry_day == -1:
+            day = last_day
+        else:
+            day = min(expiry_day, last_day)
+        try:
+            expiry = date(year, month, day)
+        except ValueError:
+            expiry = date(year, month, last_day)
+        while not is_trading_day(expiry):
+            expiry -= timedelta(days=1)
+        return expiry
+
+    # Weekday-based expiry rule (equity indices default)
     weekday = cfg.get('expiry_weekday', 3)
     expiry = last_weekday_of_month(year, month, weekday)
     while not is_trading_day(expiry):
@@ -842,7 +908,8 @@ def calculate_atr_trailing(df, fast_period, fast_mult, slow_period, slow_mult):
 # ========================================
 # DATA FETCHING FUNCTIONS
 # ========================================
-def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=True):
+def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=True,
+                  market_open=915, market_close=1530):
     fyers = init_fyers()
     if not fyers:
         return pd.DataFrame()
@@ -870,7 +937,8 @@ def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=Tru
         if response.get('s') != 'ok':
             if retry_on_fail and 'unauthorized' in str(response.get('message', '')).lower():
                 if auto_refresh_access_token():
-                    return fetch_candles(instrument_key, interval, days, retry_on_fail=False)
+                    return fetch_candles(instrument_key, interval, days, retry_on_fail=False,
+                                         market_open=market_open, market_close=market_close)
             return pd.DataFrame()
 
         candles = response.get('candles', [])
@@ -894,7 +962,7 @@ def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=Tru
         df = df.sort_values('datetime').drop_duplicates('datetime').reset_index(drop=True)
 
         t = df['datetime'].dt.hour * 100 + df['datetime'].dt.minute
-        df = df[(t >= 915) & (t <= 1530)].reset_index(drop=True)
+        df = df[(t >= market_open) & (t <= market_close)].reset_index(drop=True)
 
         return df
 
@@ -902,7 +970,7 @@ def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=Tru
         return pd.DataFrame()
 
 
-def resample_candles(df_1m, minutes):
+def resample_candles(df_1m, minutes, market_open=915, market_close=1530):
     if len(df_1m) == 0:
         return pd.DataFrame()
 
@@ -920,7 +988,7 @@ def resample_candles(df_1m, minutes):
     r = r[r['datetime'] + timedelta(minutes=minutes) <= now]
 
     t = r['datetime'].dt.hour * 100 + r['datetime'].dt.minute
-    return r[(t >= 915) & (t <= 1530)].reset_index(drop=True)
+    return r[(t >= market_open) & (t <= market_close)].reset_index(drop=True)
 
 
 # ========================================
@@ -1048,7 +1116,11 @@ def generate_signals():
             futures_sym, fy, fm = get_current_futures_symbol(symbol)
             print(f"   Using futures: {futures_sym}")
 
-            df_1m = fetch_candles(futures_sym, '1minute', days=3)
+            market_open = config.get('market_open', 915)
+            market_close = config.get('market_close', 1530)
+
+            df_1m = fetch_candles(futures_sym, '1minute', days=3,
+                                  market_open=market_open, market_close=market_close)
 
             opening_signals = scan_opening_signal_1min(symbol, config, df_1m.copy())
             opening_fired_today = len(opening_signals) > 0
@@ -1060,7 +1132,8 @@ def generate_signals():
                 print(f"Insufficient candles: {len(df_1m)}")
                 continue
 
-            df = resample_candles(df_1m, config['resample_minutes'])
+            df = resample_candles(df_1m, config['resample_minutes'],
+                                  market_open=market_open, market_close=market_close)
 
             if len(df) < max(config['fast_period'], config['slow_period']) + 10:
                 print(f"Insufficient resampled candles: {len(df)}")
@@ -1233,6 +1306,10 @@ def generate_option_signals(futures_signals):
         if not config:
             continue
 
+        # Skip option generation for symbols that have it disabled (e.g. MCX commodities)
+        if not config.get('options_enabled', True):
+            continue
+
         direction = sig.get('direction', '')
         opt_type = 'CE' if direction == 'BUY-LONG' else 'PE'
         tp1 = float(sig.get('target_1', 0))
@@ -1294,8 +1371,14 @@ def get_scanner_status():
         return 'MARKET_CLOSED'
     if now.date() in TRADING_HOLIDAYS:
         return 'MARKET_CLOSED'
-    if 915 <= time_val <= 1530:
-        return 'ACTIVE'
+
+    # Any symbol active? Each symbol has its own market window.
+    for sym, cfg in SCANNER_CONFIG.items():
+        m_open = cfg.get('market_open', 915)
+        m_close = cfg.get('market_close', 1530)
+        if m_open <= time_val <= m_close:
+            return 'ACTIVE'
+
     if 900 <= time_val < 915:
         return 'PRE_MARKET'
     return 'MARKET_CLOSED'
