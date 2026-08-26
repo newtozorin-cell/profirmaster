@@ -12766,5 +12766,32 @@
     "lot_size": 65,
     "scanner_type": "atr_trailing",
     "outcome": "pending"
+  },
+  {
+    "_id": "GOLDPETAL_20260826_1735",
+    "symbol": "GOLDPETAL",
+    "direction": "BUY-LONG",
+    "model": "ATR-TS",
+    "entry": 16318.0,
+    "sl": 16264.22,
+    "target_1": 16398.67,
+    "target_2": 16452.45,
+    "target": 16452.45,
+    "risk_reward": "1:2.5",
+    "confidence": 0.8,
+    "grade": "A",
+    "grade_score": 85,
+    "scan_date": "2026-08-26T17:35:00+05:30",
+    "scan_time": "17:35",
+    "trail1": 16295.28,
+    "trail2": 16264.22,
+    "fast_atr": 17.47,
+    "slow_atr": 13.44,
+    "bar_color": "green",
+    "regime": "BULL",
+    "timeframe": "5m",
+    "lot_size": 1,
+    "scanner_type": "atr_trailing",
+    "outcome": "pending"
   }
 ]
