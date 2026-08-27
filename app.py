@@ -252,10 +252,10 @@ TRADE_SCHEDULE = {
     ],
     'GOLDPETAL': [
         # No time/direction restrictions — long and short allowed any time
-        # the market is open (Mon-Fri 09:00-23:00 IST, enforced by the
+        # the market is open (Mon-Fri 09:00-23:59 IST, enforced by the
         # market-hours guard + weekday check in notify_new_signals).
-        {'start': '09:00', 'end': '23:00', 'directions': 'LONG_SHORT'},
-    ],
+        {'start': '09:00', 'end': '23:59', 'directions': 'LONG_SHORT'},
+    ],,
 }
 
 
@@ -298,7 +298,7 @@ def notify_new_signals(new_signals):
     # are still narrowed by their per-symbol TRADE_SCHEDULE windows)
     now_ist = datetime.now(IST)
     t_val = now_ist.hour * 100 + now_ist.minute
-    if t_val < 900 or t_val > 2300:
+    if t_val < 900 or t_val > 2359:
         print(f"[Telegram] Skipped: outside market hours ({now_ist.strftime('%H:%M IST')})")
         return
     if not is_trading_day(now_ist.date()):
