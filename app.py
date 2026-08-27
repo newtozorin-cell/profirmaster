@@ -1427,7 +1427,9 @@ def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=Tru
 
         t = df['datetime'].dt.hour * 100 + df['datetime'].dt.minute
 
-        df = df[(t >= 915) & (t <= 1530)].reset_index(drop=True)
+        # Widened 09:00-23:59 to cover GOLDPETAL's MCX session
+        # (NIFTY/BANKNIFTY/SENSEX are still narrowed downstream by TRADE_SCHEDULE)
+        df = df[(t >= 900) & (t <= 2359)].reset_index(drop=True)
 
 
         return df
@@ -1462,7 +1464,9 @@ def resample_candles(df_1m, minutes):
 
     t = r['datetime'].dt.hour * 100 + r['datetime'].dt.minute
 
-    return r[(t >= 915) & (t <= 1530)].reset_index(drop=True)
+    # Widened 09:00-23:59 to cover GOLDPETAL's MCX session
+    # (NIFTY/BANKNIFTY/SENSEX are still narrowed downstream by TRADE_SCHEDULE)
+    return r[(t >= 900) & (t <= 2359)].reset_index(drop=True)
 
 
 # ========================================
