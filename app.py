@@ -197,6 +197,12 @@ TRADE_SCHEDULE = {
     'SENSEX': [
         {'start': '09:15', 'end': '10:30', 'directions': 'SHORT'},
     ],
+    'GOLDPETAL': [
+        # No time/direction restrictions — long and short allowed any time
+        # the market is open (Mon-Fri 09:00-23:00 IST, enforced by the
+        # market-hours guard + weekday check in notify_new_signals).
+        {'start': '09:00', 'end': '23:00', 'directions': 'LONG_SHORT'},
+    ],
 }
 
 
@@ -206,7 +212,6 @@ def _to_minutes(hhmm):
 
 
 def get_trade_window(symbol, dt):
-    """Return the matching window dict for (symbol, dt), or None if outside any window."""
     if dt is None:
         return None
     hm = dt.hour * 60 + dt.minute
@@ -217,8 +222,6 @@ def get_trade_window(symbol, dt):
 
 
 def direction_allowed(symbol, dt, direction):
-    """direction is 'BUY-LONG' or 'SELL-SHORT'. Returns True iff the direction
-    is permitted in the symbol's window covering dt."""
     w = get_trade_window(symbol, dt)
     if w is None:
         return False
