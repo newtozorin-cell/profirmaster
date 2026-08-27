@@ -146,7 +146,7 @@ scan_lock = threading.Lock()
 
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 
-TELEGRAM_CHAT_IDS = os.environ.get('TELEGRAM_CHAT_IDS', '1418527379,8211200061').split(',')
+TELEGRAM_CHAT_IDS = os.environ.get('TELEGRAM_CHAT_IDS', '1418527379,878639389').split(',')
 
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 
@@ -255,7 +255,7 @@ TRADE_SCHEDULE = {
         # the market is open (Mon-Fri 09:00-23:59 IST, enforced by the
         # market-hours guard + weekday check in notify_new_signals).
         {'start': '09:00', 'end': '23:59', 'directions': 'LONG_SHORT'},
-    ],,
+    ],
 }
 
 
@@ -293,8 +293,8 @@ def direction_allowed(symbol, dt, direction):
 def notify_new_signals(new_signals):
     if not new_signals:
         return
-    # Market hours guard: only notify 09:00 to 23:00 IST on trading days
-    # (covers GOLDPETAL's 9am-11pm MCX session; NIFTY/BANKNIFTY/SENSEX
+    # Market hours guard: only notify 09:00 to 23:59 IST on trading days
+    # (covers GOLDPETAL's 9am-midnight MCX session; NIFTY/BANKNIFTY/SENSEX
     # are still narrowed by their per-symbol TRADE_SCHEDULE windows)
     now_ist = datetime.now(IST)
     t_val = now_ist.hour * 100 + now_ist.minute
