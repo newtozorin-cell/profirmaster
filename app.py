@@ -249,10 +249,7 @@ def notify_new_signals(new_signals):
         print(f"[Telegram] Skipped: non-trading day ({now_ist.strftime('%a %d %b')})")
         return
 
-    for sig in new_signals[:5]:
-        symbol = sig.get('symbol', '')
-        config = SCANNER_CONFIG.get(symbol, {})
-
+        for sig in new_signals[:5]:
         dt_raw = sig.get('scan_date', '')
         try:
             dt_obj = datetime.fromisoformat(dt_raw)
@@ -261,19 +258,30 @@ def notify_new_signals(new_signals):
             dt_obj = None
             dt_str = dt_raw
 
-        # Trading-window filter: applies only to symbols WITH TRADE_SCHEDULE entries.
-        # Symbols without a schedule (e.g. GOLDPETAL) have no time restrictions.
+        # Per-symbol trading-window filter (also enforces direction)
+        symbol   = sig.get('symbol', '')
         direction = sig.get('direction', '')
-        if symbol in TRADE_SCHEDULE:
-            if dt_obj is not None and not direction_allowed(symbol, dt_obj, direction):
-                win = get_trade_window(symbol, dt_obj)
-                if win is None:
-                    print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} outside trading window at {dt_obj.strftime('%H:%M')}")
-                else:
-                    print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} {win['directions']} only at {dt_obj.strftime('%H:%M')} (got {direction})")
-                continue
+        if dt_obj is not None and not direction_allowed(symbol, dt_obj, direction):
+            win = get_trade_window(symbol, dt_obj)
+            if win is None:
+                print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} outside trading window at {dt_obj.strftime('%H:%M')}")
+            else:
+                print(f"[Telegram] Skipped {sig.get('_id')}: {symbol} {win['directions']} only at {dt_obj.strftime('%H:%M')} (got {direction})")
+            continue
 
-        # Save + mark notified (always, regardless of Telegram)
+        msg = (
+            f"📊 <b>{sig.get('symbol','?')}</b>\n"
+            f"📅 {dt_str}\n"
+            f"🔀 Dir: {sig.get('direction','?')}\n"
+            f"🎯 Entry: {sig.get('entry','?')}\n"
+            f"🛑 SL: {sig.get('sl','?')}\n"
+            f"✅ T1: {sig.get('target_1','?')}\n"
+            f"🚀 T2: {sig.get('target_2','?')}"
+        )
+
+        for cid in TELEGRAM_CHAT_IDS:
+            send_telegram(cid, msg)
+
         save_signal_to_github(sig)
         notified_ids = load_notified_ids()
         notified_ids.add(sig.get('_id'))
