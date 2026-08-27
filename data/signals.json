@@ -12953,5 +12953,30 @@
     "lot_size": 1,
     "scanner_type": "atr_trailing",
     "outcome": "pending"
+  },
+  {
+    "_id": "SENSEX_20260827_0916_1MIN",
+    "symbol": "SENSEX",
+    "direction": "SELL-SHORT",
+    "model": "ATR-TS-1MIN-OPEN",
+    "entry": 78242.85,
+    "sl": 78305.97,
+    "target_1": 78148.17,
+    "target_2": 78085.05,
+    "target": 78085.05,
+    "risk_reward": "1:2.5",
+    "confidence": 0.8,
+    "grade": "A",
+    "grade_score": 85,
+    "scan_date": "2026-08-27T09:16:00+05:30",
+    "scan_time": "09:16",
+    "trail1": 78287.67,
+    "trail2": 78305.97,
+    "bar_color": "red",
+    "regime": "BEAR",
+    "timeframe": "1m (opening only)",
+    "lot_size": 20,
+    "scanner_type": "atr_trailing_1min_open",
+    "outcome": "pending"
   }
 ]
