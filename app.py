@@ -249,12 +249,9 @@ def notify_new_signals(new_signals):
         return
     if not is_trading_day(now_ist.date()):
         print(f"[Telegram] Skipped: non-trading day ({now_ist.strftime('%a %d %b')})")
-        return    
-    if not is_trading_day(now_ist.date()):
-        print(f"[Telegram] Skipped: non-trading day ({now_ist.strftime('%a %d %b')})")
         return
 
-        for sig in new_signals[:5]:
+    for sig in new_signals[:5]:
         dt_raw = sig.get('scan_date', '')
         try:
             dt_obj = datetime.fromisoformat(dt_raw)
@@ -263,7 +260,7 @@ def notify_new_signals(new_signals):
             dt_obj = None
             dt_str = dt_raw
 
-                # Per-symbol trading-window filter (also enforces direction)
+        # Per-symbol trading-window filter (also enforces direction)
         symbol   = sig.get('symbol', '')
         direction = sig.get('direction', '')
         if dt_obj is not None and not direction_allowed(symbol, dt_obj, direction):
@@ -288,6 +285,7 @@ def notify_new_signals(new_signals):
             send_telegram(cid, msg)
 
         save_signal_to_github(sig)
+        # Mark this signal as notified (persistent across restarts)
         notified_ids = load_notified_ids()
         notified_ids.add(sig.get('_id'))
         save_notified_ids(notified_ids)
