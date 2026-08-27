@@ -1317,9 +1317,16 @@ def generate_option_signals(futures_signals):
     results = []
 
     for sig in futures_signals:
-        symbol = sig.get('symbol', '')
+                symbol = sig.get('symbol', '')
+
         config = SCANNER_CONFIG.get(symbol, {})
+
         if not config:
+
+            continue
+
+        # Skip symbols that don't have an options chain (e.g. GOLDPETAL on MCX)
+        if not config.get('option_key'):
             continue
 
         # Skip option generation for symbols that have it disabled (e.g. MCX commodities)
