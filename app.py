@@ -1019,12 +1019,7 @@ def resample_candles(df_1m, minutes, market_open=915, market_close=1530):
 def scan_opening_signal_1min(symbol, config, df_1m):
     """Opening window 09:15-09:20 uses 1-min Supertrend cross (catches the
     volatile opening move early for quick entry). From 09:21 onwards the
-    normal 5-min cross takes over via generate_signals().
-
-    Entry rule:
-      - 09:15 cross -> entry = 09:16 candle close (one bar delay)
-      - 09:16-09:19 cross -> entry = same candle close (unchanged)
-    """
+    normal 5-min cross takes over via generate_signals()."""
     results = []
     if len(df_1m) < max(config['fast_period'], config['slow_period']) + 10:
         return results
@@ -1037,7 +1032,6 @@ def scan_opening_signal_1min(symbol, config, df_1m):
 
     t = df['datetime'].dt.hour * 100 + df['datetime'].dt.minute
     opening = df[(t >= 915) & (t <= 920)]  # 09:15-09:20 — 1-min quick-entry window
-
     for _, row in opening.iterrows():
         if not (row.get('buy_signal', False) or row.get('sell_signal', False)):
             continue
