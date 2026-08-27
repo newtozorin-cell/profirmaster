@@ -2023,7 +2023,9 @@ def get_scanner_status():
 
         return 'MARKET_CLOSED'
 
-    if 915 <= time_val <= 1530:
+    # ACTIVE window: 09:15-23:59 covers NIFTY/BANKNIFTY/SENSEX (09:15-15:30)
+    # AND GOLDPETAL (09:00-23:59). PRE_MARKET 09:00-09:15 only has GOLDPETAL.
+    if 915 <= time_val <= 2359:
 
         return 'ACTIVE'
 
