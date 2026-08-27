@@ -249,6 +249,8 @@ def notify_new_signals(new_signals):
         return
     if not is_trading_day(now_ist.date()):
         print(f"[Telegram] Skipped: non-trading day ({now_ist.strftime('%a %d %b')})")
+        return    if not is_trading_day(now_ist.date()):
+        print(f"[Telegram] Skipped: non-trading day ({now_ist.strftime('%a %d %b')})")
         return
 
         for sig in new_signals[:5]:
