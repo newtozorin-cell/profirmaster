@@ -262,7 +262,7 @@ def notify_new_signals(new_signals):
             dt_obj = None
             dt_str = dt_raw
 
-        # Per-symbol trading-window filter (also enforces direction)
+                # Per-symbol trading-window filter (also enforces direction)
         symbol   = sig.get('symbol', '')
         direction = sig.get('direction', '')
         if dt_obj is not None and not direction_allowed(symbol, dt_obj, direction):
