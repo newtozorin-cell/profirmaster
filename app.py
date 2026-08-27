@@ -212,6 +212,7 @@ def _to_minutes(hhmm):
 
 
 def get_trade_window(symbol, dt):
+    """Return the matching window dict for (symbol, dt), or None if outside any window."""
     if dt is None:
         return None
     hm = dt.hour * 60 + dt.minute
@@ -222,6 +223,8 @@ def get_trade_window(symbol, dt):
 
 
 def direction_allowed(symbol, dt, direction):
+    """direction is 'BUY-LONG' or 'SELL-SHORT'. Returns True iff the direction
+    is permitted in the symbol's window covering dt."""
     w = get_trade_window(symbol, dt)
     if w is None:
         return False
@@ -232,7 +235,6 @@ def direction_allowed(symbol, dt, direction):
     if w['directions'] == 'SHORT':
         return direction == 'SELL-SHORT'
     return False
-
 
 def notify_new_signals(new_signals):
     if not new_signals:
