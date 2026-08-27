@@ -237,10 +237,17 @@ def direction_allowed(symbol, dt, direction):
 def notify_new_signals(new_signals):
     if not new_signals:
         return
-
+    # Market hours guard: 09:00-23:00 IST on trading days
+    # (covers GOLDPETAL's 9am-11pm MCX session; NIFTY/BANKNIFTY/SENSEX
+    # are still narrowed by their per-symbol TRADE_SCHEDULE windows)
     now_ist = datetime.now(IST)
     t_val = now_ist.hour * 100 + now_ist.minute
-    in_equity_hours = 915 <= t_val <= 1530
+    if t_val < 900 or t_val > 2300:
+        print(f"[Telegram] Skipped: outside market hours ({now_ist.strftime('%H:%M IST')})")
+        return
+    if not is_trading_day(now_ist.date()):
+        print(f"[Telegram] Skipped: non-trading day ({now_ist.strftime('%a %d %b')})")
+        return
 
     for sig in new_signals[:5]:
         symbol = sig.get('symbol', '')
