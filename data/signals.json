@@ -1,15 +1,5 @@
 [
   {
-    "_id": "TEST_162423",
-    "symbol": "TEST_NIFTY",
-    "direction": "LONG",
-    "entry": 25000,
-    "sl": 24900,
-    "target_1": 25100,
-    "target_2": 25200,
-    "scan_date": "2026-06-30T21:54:23.533250+05:30"
-  },
-  {
     "_id": "TEST_162712",
     "symbol": "TEST_NIFTY",
     "direction": "LONG",
@@ -13384,6 +13374,33 @@
     "regime": "BULL",
     "timeframe": "5m",
     "lot_size": 30,
+    "scanner_type": "atr_trailing",
+    "outcome": "pending"
+  },
+  {
+    "_id": "GOLDPETAL_20260831_1310",
+    "symbol": "GOLDPETAL",
+    "direction": "BUY-LONG",
+    "model": "ATR-TS",
+    "entry": 15578.0,
+    "sl": 15503.16,
+    "target_1": 15690.26,
+    "target_2": 15765.1,
+    "target": 15765.1,
+    "risk_reward": "1:2.5",
+    "confidence": 0.8,
+    "grade": "A",
+    "grade_score": 85,
+    "scan_date": "2026-08-31T13:10:00+05:30",
+    "scan_time": "13:10",
+    "trail1": 15558.32,
+    "trail2": 15503.16,
+    "fast_atr": 15.14,
+    "slow_atr": 18.71,
+    "bar_color": "green",
+    "regime": "BULL",
+    "timeframe": "5m",
+    "lot_size": 1,
     "scanner_type": "atr_trailing",
     "outcome": "pending"
   }
