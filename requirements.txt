@@ -4,7 +4,7 @@ Flask==2.3.2
 flask-cors==4.0.0
 requests==2.31.0
 numpy==1.26.3
-pandas==2.2.3
+pandas==2.3.3
 pytz==2023.3
 fyers-apiv3==3.0.6
 yfinance==0.2.18
