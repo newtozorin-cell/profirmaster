@@ -117,7 +117,7 @@ SCANNER_CONFIG = {
 
 IST = pytz.timezone('Asia/Kolkata')
 
-TOKEN_FILE = '/tmp/token.json'
+TOKEN_FILE = 'token.json'
 
 REFRESH_FILE = '/tmp/refresh_token.txt'
 
