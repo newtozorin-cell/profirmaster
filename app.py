@@ -146,7 +146,7 @@ scan_lock = threading.Lock()
 
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 
-TELEGRAM_CHAT_IDS = os.environ.get('TELEGRAM_CHAT_IDS', '1418527379,878639389').split(',')
+TELEGRAM_CHAT_IDS = os.environ.get('TELEGRAM_CHAT_IDS', '1418527379,8211200061').split(',')
 
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 
@@ -2601,4 +2601,3 @@ if __name__ == '__main__':
     print("\nStarting Flask server...")
 
     app.run(host='0.0.0.0', port=port, debug=False)
-
