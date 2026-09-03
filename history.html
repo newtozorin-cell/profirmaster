@@ -142,6 +142,8 @@ tr:hover td{background:#f8fafc;}
         <a href="index.html" class="hb hb-back">← Scanner</a>
         <button class="hb hb-rescan" onclick="rescanTrades()">🔄 Rescan</button>
         <button class="hb hb-csv" onclick="exportCSV()">📥 CSV</button>
+        <button class="hb hb-csv" onclick="uploadJSON()">⬆ Upload JSON</button>
+        <button class="hb hb-csv" onclick="downloadJSON()">⬇ Download JSON</button>
         <button class="hb hb-clear" onclick="clearAll()">🗑 Clear</button>
     </div>
 </div>
@@ -287,6 +289,7 @@ tr:hover td{background:#f8fafc;}
     </div>
 </div>
 
+<input type="file" id="jsonFile" accept=".json,application/json" style="display:none" onchange="handleUpload(event)">
 <div class="toast" id="toast"></div>
 <div class="footer">
     StrikeTrail v2 — History in localStorage &middot;
@@ -306,6 +309,7 @@ var TT = {backgroundColor:'#0f1f3d',titleColor:'#e2e8f0',bodyColor:'#a0aec0',pad
 function showToast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast '+t+' show';setTimeout(function(){e.className='toast';},3000);}
 
 function load(){
+    try{var rawTest=localStorage.getItem('signalHistory');if(rawTest)JSON.parse(rawTest);}catch(e){localStorage.removeItem('signalHistory');}
     syncFromScanner();
     fetchFromRailway();
     fetchHistoryFromServer();
@@ -512,199 +516,224 @@ function renderTable(){
         h+='<td>'+s.entry+'</td><td style="color:#ef4444">'+s.sl+'</td>';
         h+='<td style="color:#d97706">'+(s.target_1||'')+'</td><td style="color:#16a34a">'+(s.target_2||s.target||'')+'</td>';
         h+='<td>'+(s.risk_reward||'')+'</td><td>'+Math.round((s.confidence||0)*100)+'%</td>';
-        h+='<td><select class="o-select" onchange="updO('+idx+',this.value)">';
-        ['pending','open','target_hit','stop_hit','expired'].forEach(function(o){h+='<option value="'+o+'"'+(s.outcome===o?' selected':'')+'>'+o.replace('_',' ')+'</option>';});
+                h+='<td><select class="o-select" onchange="updateOutcome('+idx+',this.value)">';
+        ['pending','target_hit','stop_hit','open','expired'].forEach(function(o){h+='<option '+(s.outcome===o?'selected':'')+'>'+o+'</option>';});
         h+='</select></td>';
-        h+='<td><input class="e-input" type="number" step="0.01" value="'+(s.exit_price||'')+'" onchange="updE('+idx+',this.value)" placeholder="Exit"></td>';
+        h+='<td><input class="e-input" type="number" step="0.01" placeholder="exit" value="'+(s.exit_price||'')+'" onchange="updateExit('+idx+',this.value)"></td>';
         h+='<td class="'+pc+'">'+pnl+'</td>';
-        h+='<td><button class="btn-del" onclick="delTrade('+idx+')" title="Delete">✕</button></td>';
+        h+='<td><button class="btn-del" onclick="deleteTrade('+idx+')">✕</button></td>';
         h+='</tr>';
     });
     tb.innerHTML=h;
 }
 
-function delTrade(i){if(!confirm('Delete this trade?'))return;allH.splice(i,1);saveAll();applyFilters();showToast('Deleted','info');}
-function updO(i,v){allH[i].outcome=v;saveAll();applyFilters();}
-function updE(i,v){allH[i].exit_price=v;if(v&&!isNaN(v))allH[i].outcome=classifyOutcome(allH[i]);saveAll();applyFilters();}
-
-function dch(c){if(c)c.destroy();}
-
-function renderCharts(){
-    filtH.forEach(function(s){if(s.exit_price&&!isNaN(s.exit_price))s.outcome=classifyOutcome(s);});
-    var closed=filtH.filter(function(s){return (s.outcome==='target_hit'||s.outcome==='stop_hit')&&s.exit_price&&!isNaN(s.exit_price);});
-    document.getElementById('analyticsSection').style.display=filtH.length>0?'block':'none';
-    if(filtH.length===0)return;
-
-    // Summary ribbon
-    var netPnL=0;closed.forEach(function(s){netPnL+=getTradePnL(s);});netPnL=Math.round(netPnL);
-    var tg=closed.filter(function(s){return s.outcome==='target_hit';}).length;
-    var st=closed.filter(function(s){return s.outcome==='stop_hit';}).length;
-    var dec=tg+st,wr=dec>0?Math.round(tg/dec*100):0;
-    var sp=document.getElementById('srNetPnL');sp.textContent='₹'+netPnL.toLocaleString('en-IN');sp.className='sr-val '+(netPnL>=0?'green':'red');
-    document.getElementById('srWinRate').textContent=dec>0?wr+'%':'—';
-    document.getElementById('srWinCaption').textContent=tg+' wins, '+st+' losses';
-    if(closed.length>0){
-        var pnls=closed.map(function(s){return{pnl:Math.round(getTradePnL(s)),sym:s.symbol,dir:s.direction==='BUY-LONG'?'BUY':'SELL'};});
-        pnls.sort(function(a,b){return b.pnl-a.pnl;});
-        document.getElementById('srBest').textContent='₹'+pnls[0].pnl.toLocaleString('en-IN');
-        document.getElementById('srBestCaption').textContent=pnls[0].sym+' '+pnls[0].dir;
-        document.getElementById('srWorst').textContent='₹'+pnls[pnls.length-1].pnl.toLocaleString('en-IN');
-        document.getElementById('srWorstCaption').textContent=pnls[pnls.length-1].sym+' '+pnls[pnls.length-1].dir;
-    }
-
-    if(closed.length===0)return;
-
-    // 1. Equity Curve
-    var sorted=closed.slice().sort(function(a,b){return new Date(a.scan_date)-new Date(b.scan_date);});
-    var cum=0,pL=[],pD=[],ptC=[];
-    sorted.forEach(function(s){cum+=Math.round(getTradePnL(s));pL.push(fmtDate(s.scan_date));pD.push(cum);ptC.push(cum>=0?'#16a34a':'#dc2626');});
-    var fv=pD[pD.length-1]||0;
-    var eb=document.getElementById('equityBadge');
-    eb.textContent=(fv>=0?'▲ ':'▼ ')+'₹'+Math.abs(fv).toLocaleString('en-IN');
-    eb.className='cc-badge '+(fv>=0?'green':'red');
-
-    dch(chPnL);
-    var ctx=document.getElementById('chartPnL').getContext('2d');
-    var g=ctx.createLinearGradient(0,0,0,150);
-    g.addColorStop(0,fv>=0?'rgba(22,163,74,0.12)':'rgba(220,38,38,0.10)');
-    g.addColorStop(1,'rgba(255,255,255,0)');
-    chPnL=new Chart(ctx,{type:'line',data:{labels:pL,datasets:[{label:'Cumulative P&L',data:pD,borderColor:fv>=0?'#16a34a':'#dc2626',backgroundColor:g,borderWidth:2,pointBackgroundColor:ptC,pointBorderColor:'#fff',pointBorderWidth:1.5,pointRadius:3,pointHoverRadius:5,tension:0.4,fill:true}]},
-        options:{responsive:true,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:function(c){return ' ₹'+c.raw.toLocaleString('en-IN');}}}},
-        scales:{x:{ticks:{color:'#a0aec0',font:{size:9},maxTicksLimit:10},grid:{color:'#f0f4f8',drawBorder:false}},
-                y:{ticks:{color:'#a0aec0',font:{size:9},callback:function(v){return '₹'+v.toLocaleString('en-IN');}},grid:{color:'#f0f4f8',drawBorder:false}}}}});
-
-    // 2. Outcome Donut
-    var op=filtH.filter(function(s){return s.outcome==='open';}).length;
-    var pn=filtH.filter(function(s){return s.outcome==='pending';}).length;
-    var odD=[tg,st,op,pn],odL=['Target Hit','Stop Hit','Open','Pending'],odC=['#16a34a','#dc2626','#2563eb','#d97706'];
-    dch(chOutcome);
-    chOutcome=new Chart(document.getElementById('chartOutcome'),{type:'doughnut',
-        data:{labels:odL,datasets:[{data:odD,backgroundColor:odC,borderWidth:2,borderColor:'#fff',hoverOffset:4}]},
-        options:{responsive:true,cutout:'65%',plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:function(c){var t=c.dataset.data.reduce(function(a,b){return a+b;},0);return ' '+c.label+': '+c.raw+' ('+Math.round(c.raw/t*100)+'%)';}}}}}});
-    var ol='';odL.forEach(function(l,i){if(odD[i]>0)ol+='<div class="cl-item"><div class="cl-dot" style="background:'+odC[i]+'"></div>'+l+' ('+odD[i]+')</div>';});
-    document.getElementById('outcomeLegend').innerHTML=ol;
-
-    // 3. Symbol P&L
-    var sMap={};closed.forEach(function(s){if(!sMap[s.symbol])sMap[s.symbol]=0;sMap[s.symbol]+=Math.round(getTradePnL(s));});
-    var sL=Object.keys(sMap),sV=sL.map(function(k){return sMap[k];});
-    dch(chSymbol);
-    chSymbol=new Chart(document.getElementById('chartSymbol'),{type:'bar',
-        data:{labels:sL,datasets:[{label:'Net P&L',data:sV,backgroundColor:sV.map(function(v){return v>=0?'rgba(22,163,74,0.1)':'rgba(220,38,38,0.1)';}),borderColor:sV.map(function(v){return v>=0?'#16a34a':'#dc2626';}),borderWidth:1.5,borderRadius:6,borderSkipped:false}]},
-        options:{responsive:true,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:function(c){return ' ₹'+c.raw.toLocaleString('en-IN');}}}},
-        scales:{x:{ticks:{color:'#4a5568',font:{size:11,weight:'600'}},grid:{display:false},border:{display:false}},
-                y:{ticks:{color:'#a0aec0',font:{size:9},callback:function(v){return '₹'+v.toLocaleString('en-IN');}},grid:{color:'#f0f4f8'},border:{display:false}}}}});
-
-    // 4. BUY vs SELL
-    var ds={'BUY-LONG':{win:0,loss:0},'SELL-SHORT':{win:0,loss:0}};
-    closed.forEach(function(s){var p=getTradePnL(s);if(p>=0)ds[s.direction].win++;else ds[s.direction].loss++;});
-    dch(chDir);
-    chDir=new Chart(document.getElementById('chartDir'),{type:'bar',
-        data:{labels:['BUY','SELL'],datasets:[
-            {label:'Wins',data:[ds['BUY-LONG'].win,ds['SELL-SHORT'].win],backgroundColor:'rgba(22,163,74,0.1)',borderColor:'#16a34a',borderWidth:1.5,borderRadius:6,borderSkipped:false},
-            {label:'Losses',data:[ds['BUY-LONG'].loss,ds['SELL-SHORT'].loss],backgroundColor:'rgba(220,38,38,0.1)',borderColor:'#dc2626',borderWidth:1.5,borderRadius:6,borderSkipped:false}
-        ]},
-        options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:10},usePointStyle:true,pointStyle:'circle'}},tooltip:{...TT}},
-        scales:{x:{ticks:{color:'#4a5568',font:{size:11,weight:'600'}},grid:{display:false},border:{display:false}},
-                y:{ticks:{color:'#a0aec0',font:{size:9},stepSize:1},grid:{color:'#f0f4f8'},border:{display:false}}}}});
-
-    // 5. Grade P&L
-    var gMap={};closed.forEach(function(s){var g=s.grade||'?';if(!gMap[g])gMap[g]=0;gMap[g]+=Math.round(getTradePnL(s));});
-    var gO=['A+','A','B','C'],gL=gO.filter(function(g){return gMap[g]!==undefined;}),gV=gL.map(function(g){return gMap[g];});
-    dch(chGrade);
-    chGrade=new Chart(document.getElementById('chartGrade'),{type:'bar',
-        data:{labels:gL,datasets:[{label:'Net P&L',data:gV,backgroundColor:gV.map(function(v){return v>=0?'rgba(22,163,74,0.1)':'rgba(220,38,38,0.1)';}),borderColor:gV.map(function(v){return v>=0?'#16a34a':'#dc2626';}),borderWidth:1.5,borderRadius:6,borderSkipped:false}]},
-        options:{responsive:true,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:function(c){return ' ₹'+c.raw.toLocaleString('en-IN');}}}},
-        scales:{x:{ticks:{color:'#4a5568',font:{size:12,weight:'700'}},grid:{display:false},border:{display:false}},
-                y:{ticks:{color:'#a0aec0',font:{size:9},callback:function(v){return '₹'+v.toLocaleString('en-IN');}},grid:{color:'#f0f4f8'},border:{display:false}}}}});
+function updateOutcome(i,v){
+    if(!allH[i])return;
+    allH[i].outcome=v;
+    if(v==='pending'){allH[i].exit_price='';}
+    saveAll();applyFilters();showToast('Outcome updated','success');
 }
 
-function fetchWithTimeout(url, opts, ms){
-    var ctrl=new AbortController();
-    var timer=setTimeout(function(){ctrl.abort();},ms);
-    return fetch(url,Object.assign({},opts,{signal:ctrl.signal})).finally(function(){clearTimeout(timer);});
+function updateExit(i,v){
+    if(!allH[i])return;
+    allH[i].exit_price=v;
+    var co=classifyOutcome(allH[i]);
+    if(co==='target_hit'||co==='stop_hit'){allH[i].outcome=co;}
+    saveAll();applyFilters();showToast('Exit price saved','success');
 }
 
-async function rescanTrades(){
-    var open=allH.filter(function(s){return s.outcome==='pending'||s.outcome==='open';});
-    if(open.length===0){showToast('No pending trades to rescan','info');return;}
-
-    // Disable button, show loading state
-    var btn=document.querySelector('.hb-rescan');
-    var origText=btn.textContent;
-    btn.disabled=true;
-    btn.textContent='⏳ Waking server...';
-    btn.style.opacity='0.7';
-
-    try{
-        // Step 1: Wake up Render (ping /api/status first, it's lightweight)
-        showToast('Waking server — please wait ~30s...','info');
-        try{
-            await fetchWithTimeout(API_BASE+'/api/status',{},35000);
-        }catch(e){
-            // Ignore wake-up errors — server might still respond to the real call
-        }
-
-        // Step 2: Now do the actual rescan with a longer timeout
-        btn.textContent='🔄 Rescanning '+open.length+' trades...';
-        showToast('Rescanning '+open.length+' trades...','info');
-
-        var payload={signals:open.map(function(s){
-            return{_id:s._id,symbol:s.symbol,entry:s.entry,sl:s.sl,
-                   target_1:s.target_1||s.target,target_2:s.target_2||s.target,
-                   direction:s.direction,scan_date:s.scan_date};
-        })};
-
-        var r=await fetchWithTimeout(API_BASE+'/api/track',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify(payload)
-        },90000);
-
-        if(!r.ok) throw new Error('Server returned '+r.status);
-        var d=await r.json();
-
-        if(d.status==='success'&&d.results){
-            var u=0;
-            d.results.forEach(function(res){
-                var sig=allH.find(function(s){return s._id===res._id;});
-                if(sig){
-                    if(res.exit_price&&!isNaN(res.exit_price)) sig.exit_price=res.exit_price;
-                    var newOutcome=classifyOutcome(sig)||res.status;
-                    if(newOutcome&&newOutcome!==sig.outcome){sig.outcome=newOutcome;u++;}
-                }
-            });
-            saveAll();applyFilters();
-            showToast(u>0?u+' trades updated ✓':'No changes — trades still pending','success');
-        }else{
-            showToast('Error: '+(d.message||'Unknown response'),'error');
-        }
-
-    }catch(e){
-        if(e.name==='AbortError'){
-            showToast('Timed out — server may still be waking. Try again in 30s.','error');
-        }else{
-            showToast('Failed: '+e.message,'error');
-        }
-    }finally{
-        btn.disabled=false;
-        btn.textContent=origText;
-        btn.style.opacity='1';
-    }
-}
-
-function exportCSV(){
-    if(filtH.length===0){showToast('No data','info');return;}
-    var rows=[['Date','Symbol','Direction','Grade','Score','Entry','SL','T1','T2','RR','Confidence','Outcome','Exit','PnL'].join(',')];
-    filtH.forEach(function(s){
-        var pnl='';if(s.exit_price&&!isNaN(s.exit_price)){pnl=Math.round(getTradePnL(s));}
-        rows.push([s.scan_date,s.symbol,s.direction,s.grade,s.grade_score,s.entry,s.sl,s.target_1,s.target_2,s.risk_reward,Math.round((s.confidence||0)*100)+'%',s.outcome,s.exit_price||'',pnl].join(','));
-    });
-    var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download='striketrail_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
-    showToast('CSV exported','success');
+function deleteTrade(i){
+    if(!allH[i])return;
+    if(!confirm('Delete this trade?'))return;
+    allH.splice(i,1);saveAll();applyFilters();showToast('Trade deleted','info');
 }
 
 function clearAll(){if(!confirm('Clear ALL history? Cannot undo.'))return;allH=[];saveAll();applyFilters();showToast('Cleared','info');}
 
+function uploadJSON(){document.getElementById('jsonFile').click();}
+
+function handleUpload(ev){
+    var file=ev.target.files[0];
+    if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(e){
+        try{
+            var incoming=JSON.parse(e.target.result);
+            if(typeof incoming==='string')incoming=JSON.parse(incoming);
+            if(!Array.isArray(incoming))throw new Error('File is not a trade array');
+            var existing=[];
+            try{var r=localStorage.getItem('signalHistory');if(r)existing=JSON.parse(r);}catch(err){existing=[];}
+            var ids={};
+            existing.forEach(function(s){if(s._id)ids[s._id]=true;});
+            var added=0;
+            incoming.forEach(function(t){
+                if(!t._id)t._id=(t.symbol||'X')+'_'+(t.scan_date||Date.now());
+                t.scanner_type='atr_trailing';
+                if(!ids[t._id]){existing.push(t);ids[t._id]=true;added++;}
+            });
+            if(existing.length>5000)existing=existing.slice(existing.length-5000);
+            localStorage.setItem('signalHistory',JSON.stringify(existing));
+            allH=existing.filter(function(s){return s.scanner_type==='atr_trailing';});
+            allH.sort(function(a,b){return new Date(b.scan_date)-new Date(a.scan_date);});
+            applyFilters();
+            showToast('Imported '+incoming.length+' trades ('+added+' new) ✓','success');
+        }catch(err){
+            showToast('Import failed: '+err.message,'error');
+        }
+        ev.target.value='';
+    };
+    reader.readAsText(file);
+}
+
+function downloadJSON(){
+    var raw=[];
+    try{var r=localStorage.getItem('signalHistory');if(r)raw=JSON.parse(r);}catch(e){raw=allH.slice();}
+    if(raw.length===0){showToast('No trades to export','info');return;}
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(raw,null,2)],{type:'application/json'}));
+    a.download='signalHistory_'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    showToast(raw.length+' trades exported ✓','success');
+}
+
+function exportCSV(){
+    if(filtH.length===0){showToast('No data to export','info');return;}
+    var rows=[['Date','Symbol','Direction','Grade','Score','Entry','SL','T1','T2','RR','Confidence','Outcome','Exit','PnL']];
+    filtH.forEach(function(s){
+        var p=getTradePnL(s);
+        rows.push([fmtDate(s.scan_date),s.symbol,s.direction,s.grade,s.grade_score,s.entry,s.sl,s.target_1||'',s.target_2||s.target||'',s.risk_reward||'',Math.round((s.confidence||0)*100)+'%',s.outcome,s.exit_price||'',p!==null?Math.round(p):'']);
+    });
+    var csv=rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+    a.download='striketrail_history_'+new Date().toISOString().slice(0,10)+'.csv';
+    a.click();
+    showToast('CSV exported ✓','success');
+}
+
+function rescanTrades(){
+    var closed=filtH.filter(function(s){return s.outcome==='target_hit'||s.outcome==='stop_hit';});
+    if(closed.length===0){showToast('No closed trades to rescan','info');return;}
+    var now=new Date().toISOString();
+    var updated=0;
+    closed.forEach(function(s){
+        var co=classifyOutcome(s);
+        if(co!==s.outcome){s.outcome=co;updated++;}
+    });
+    saveAll();applyFilters();
+    showToast(updated>0?'Reclassified '+updated+' trades':'All outcomes already correct','success');
+}
+
+// ── CHARTS ──
+function renderCharts(){
+    ['chartPnL','chartOutcome','chartSymbol','chartDir','chartGrade'].forEach(function(id){
+        var c=Chart.getChart(id);if(c)c.destroy();
+    });
+    var closed=filtH.filter(function(s){
+        var p=getTradePnL(s);return p!==null;
+    });
+    var sec=document.getElementById('analyticsSection');
+    if(filtH.length===0){sec.style.display='none';return;}
+    sec.style.display='block';
+
+    // Summary ribbon
+    var net=closed.reduce(function(a,s){return a+getTradePnL(s);},0);
+    var wins=closed.filter(function(s){return getTradePnL(s)>0;}).length;
+    var losses=closed.length-wins;
+    var wr=closed.length>0?Math.round(wins/closed.length*100):0;
+    var pnls=closed.map(getTradePnL);
+    var best=Math.max.apply(null,pnls),worst=Math.min.apply(null,pnls);
+    var bestT=closed.find(function(s){return getTradePnL(s)===best;});
+    var worstT=closed.find(function(s){return getTradePnL(s)===worst;});
+    document.getElementById('srNetPnL').textContent='₹'+Math.round(net).toLocaleString('en-IN');
+    document.getElementById('srNetPnL').className='sr-val '+(net>=0?'green':'red');
+    document.getElementById('srWinRate').textContent=wr+'%';
+    document.getElementById('srWinCaption').textContent=wins+'W / '+losses+'L of '+closed.length;
+    document.getElementById('srBest').textContent='₹'+Math.round(best).toLocaleString('en-IN');
+    document.getElementById('srBestCaption').textContent=bestT?(bestT.symbol+' · '+bestT.grade):'—';
+    document.getElementById('srWorst').textContent='₹'+Math.round(worst).toLocaleString('en-IN');
+    document.getElementById('srWorstCaption').textContent=worstT?(worstT.symbol+' · '+worstT.grade):'—';
+
+    // Equity curve
+    var sorted=closed.slice().sort(function(a,b){return new Date(a.scan_date)-new Date(b.scan_date);});
+    var cum=0;
+    var labels=sorted.map(function(s,i){cum+=getTradePnL(s);return fmtDate(s.scan_date);});
+    var data=sorted.map(function(s,i){var c=0;for(var j=0;j<=i;j++)c+=getTradePnL(sorted[j]);return Math.round(c);});
+    var eqCtx=document.getElementById('chartPnL').getContext('2d');
+    var grad=eqCtx.createLinearGradient(0,0,0,140);
+    grad.addColorStop(0,net>=0?'rgba(22,163,74,0.25)':'rgba(220,38,38,0.25)');
+    grad.addColorStop(1,net>=0?'rgba(22,163,74,0)':'rgba(220,38,38,0)');
+    chPnL=new Chart(eqCtx,{
+        type:'line',
+        data:{labels:labels,datasets:[{
+            label:'Cumulative P&L',
+            data:data,
+            borderColor:net>=0?'#16a34a':'#dc2626',
+            backgroundColor:grad,
+            fill:true,
+            tension:0.3,
+            pointRadius:0,
+            pointHoverRadius:4,
+            borderWidth:2
+        }]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:function(c){return '₹'+c.parsed.y.toLocaleString('en-IN');}}}},scales:{x:{ticks:{maxTicksLimit:8,font:{size:9}},grid:{display:false}},y:{grid:{color:'#edf2f7'},ticks:{callback:function(v){return '₹'+(v/1000).toFixed(0)+'k';},font:{size:9}}}}}
+    });
+    var eb=document.getElementById('equityBadge');
+    eb.textContent=(net>=0?'+':'')+Math.round(net).toLocaleString('en-IN');
+    eb.className='cc-badge '+(net>=0?'green':'red');
+
+    // Outcome donut
+    var counts={target_hit:0,stop_hit:0,pending:0,open:0,expired:0};
+    filtH.forEach(function(s){if(counts[s.outcome]!==undefined)counts[s.outcome]++;});
+    var oLabels=[],oData=[],oColors=[];
+    var oMap={target_hit:['Target Hit','#16a34a'],stop_hit:['Stop Hit','#dc2626'],pending:['Pending','#d97706'],open:['Open','#2563eb'],expired:['Expired','#a0aec0']};
+    Object.keys(oMap).forEach(function(k){if(counts[k]>0){oLabels.push(oMap[k][0]);oData.push(counts[k]);oColors.push(oMap[k][1]);}});
+    chOutcome=new Chart(document.getElementById('chartOutcome'),{
+        type:'doughnut',
+        data:{labels:oLabels,datasets:[{data:oData,backgroundColor:oColors,borderWidth:2,borderColor:'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:function(c){return c.label+': '+c.parsed;}}}}}
+    });
+    var leg=document.getElementById('outcomeLegend');
+    leg.innerHTML=oLabels.map(function(l,i){return '<div class="cl-item"><span class="cl-dot" style="background:'+oColors[i]+'"></span>'+l+' ('+oData[i]+')</div>';}).join('');
+
+    // Symbol PnL
+    var bySym={};
+    closed.forEach(function(s){var sym=s.symbol||'Unknown';bySym[sym]=(bySym[sym]||0)+getTradePnL(s);});
+    var syms=Object.keys(bySym);
+    chSymbol=new Chart(document.getElementById('chartSymbol'),{
+        type:'bar',
+        data:{labels:syms,datasets:[{data:syms.map(function(s){return Math.round(bySym[s]);}),backgroundColor:syms.map(function(s){return bySym[s]>=0?'#16a34a':'#dc2626';}),borderRadius:4}]},
+        options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:function(c){return '₹'+c.parsed.x.toLocaleString('en-IN');}}}},scales:{x:{grid:{color:'#edf2f7'},ticks:{callback:function(v){return '₹'+(v/1000).toFixed(0)+'k';},font:{size:9}}},y:{grid:{display:false},ticks:{font:{size:9}}}}}
+    });
+
+    // BUY vs SELL
+    var dirData={BUY:{w:0,l:0},SELL:{w:0,l:0}};
+    closed.forEach(function(s){
+        var d=(s.direction==='BUY-LONG')?'BUY':'SELL';
+        if(getTradePnL(s)>0)dirData[d].w++;else dirData[d].l++;
+    });
+    chDir=new Chart(document.getElementById('chartDir'),{
+        type:'bar',
+        data:{labels:['BUY','SELL'],datasets:[
+            {label:'Wins',data:[dirData.BUY.w,dirData.SELL.w],backgroundColor:'#16a34a',borderRadius:4},
+            {label:'Losses',data:[dirData.BUY.l,dirData.SELL.l],backgroundColor:'#dc2626',borderRadius:4}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:10,font:{size:10}}},tooltip:{...TT}},scales:{x:{grid:{display:false}},y:{grid:{color:'#edf2f7'},ticks:{precision:0,font:{size:9}}}}}
+    });
+
+    // Grade PnL
+    var byGrade={};
+    closed.forEach(function(s){var g=s.grade||'?';byGrade[g]=(byGrade[g]||0)+getTradePnL(s);});
+    var grades=['A+','A','B','C'].filter(function(g){return byGrade[g]!==undefined;});
+    chGrade=new Chart(document.getElementById('chartGrade'),{
+        type:'bar',
+        data:{labels:grades,datasets:[{data:grades.map(function(g){return Math.round(byGrade[g]);}),backgroundColor:grades.map(function(g){return g==='A+'?'#16a34a':g==='A'?'#22c55e':g==='B'?'#d97706':'#dc2626';}),borderRadius:4}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:function(c){return '₹'+c.parsed.y.toLocaleString('en-IN');}}}},scales:{x:{grid:{display:false}},y:{grid:{color:'#edf2f7'},ticks:{callback:function(v){return '₹'+(v/1000).toFixed(0)+'k';},font:{size:9}}}}}
+    });
+}
+
+// ── INIT ──
 load();
 </script>
 </body>
+</html>
