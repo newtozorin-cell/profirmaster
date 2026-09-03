@@ -225,6 +225,50 @@ def save_signal_to_github(signal):
 
         print(f"GitHub save error: {e}")
 
+
+def save_token_to_github():
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return
+    try:
+        import base64
+        path = 'data/token.json'
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
+        headers = {'Authorization': f'token {GITHUB_TOKEN}', 'Accept': 'application/vnd.github.v3+json'}
+        r = req.get(url, headers=headers, timeout=10)
+        sha = None
+        if r.status_code == 200:
+            sha = r.json()['sha']
+        new_content = base64.b64encode(json.dumps(token_data, indent=2).encode()).decode()
+        body = {'message': f"token update {datetime.now(IST).strftime('%H:%M:%S')}", 'content': new_content}
+        if sha:
+            body['sha'] = sha
+        req.put(url, headers=headers, json=body, timeout=10)
+        print("✓ Token saved to GitHub")
+    except Exception as e:
+        print(f"GitHub token save error: {e}")
+
+def load_token_from_github():
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return False
+    try:
+        import base64
+        path = 'data/token.json'
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
+        headers = {'Authorization': f'token {GITHUB_TOKEN}', 'Accept': 'application/vnd.github.v3+json'}
+        r = req.get(url, headers=headers, timeout=10)
+        if r.status_code != 200:
+            return False
+        content = base64.b64decode(r.json()['content']).decode()
+        data = json.loads(content)
+        token_data['access_token'] = data.get('access_token')
+        token_data['token_time'] = data.get('token_time')
+        token_data['refresh_token'] = data.get('refresh_token')
+        print("✓ Token loaded from GitHub")
+        return True
+    except Exception as e:
+        print(f"GitHub token load error: {e}")
+        return False
+
         
 
 # ========================================
@@ -384,6 +428,7 @@ def save_token(access_token, refresh_token=None):
             json.dump(token_data, f)
 
         print(f"✓ Access token saved at {datetime.now(IST).strftime('%H:%M:%S IST')}")
+                save_token_to_github()
 
     except Exception as e:
 
@@ -446,6 +491,8 @@ def load_token():
 
 
         print(f"Final refresh_token loaded: {bool(token_data.get('refresh_token'))}")
+                if not token_data.get('access_token'):
+            load_token_from_github()
 
 
 
