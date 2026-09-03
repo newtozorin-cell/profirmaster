@@ -428,7 +428,7 @@ def save_token(access_token, refresh_token=None):
             json.dump(token_data, f)
 
         print(f"✓ Access token saved at {datetime.now(IST).strftime('%H:%M:%S IST')}")
-                save_token_to_github()
+        save_token_to_github()
 
     except Exception as e:
 
@@ -491,7 +491,7 @@ def load_token():
 
 
         print(f"Final refresh_token loaded: {bool(token_data.get('refresh_token'))}")
-                if not token_data.get('access_token'):
+        if not token_data.get('access_token'):
             load_token_from_github()
 
 
