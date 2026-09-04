@@ -631,13 +631,27 @@ def load_notified_ids():
 
 def save_notified_ids(ids_set):
     try:
-        # Cap to 500 entries so file doesn't grow forever
         if len(ids_set) > 500:
             ids_set = set(list(ids_set)[-500:])
         with open(NOTIFIED_IDS_FILE, 'w') as f:
             json.dump(list(ids_set), f)
     except Exception as e:
         print(f"Save notified ids error: {e}")
+    # Also save to GitHub (persists across restarts)
+    try:
+        if GITHUB_TOKEN and GITHUB_REPO:
+            import base64
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/data/notified_ids.json"
+            headers = {'Authorization': f'token {GITHUB_TOKEN}', 'Accept': 'application/vnd.github.v3+json'}
+            r = req.get(url, headers=headers, timeout=10)
+            sha = r.json()['sha'] if r.status_code == 200 else None
+            new_content = base64.b64encode(json.dumps(list(ids_set), indent=2).encode()).decode()
+            body = {'message': f"notified_ids update {len(ids_set)} items", 'content': new_content}
+            if sha:
+                body['sha'] = sha
+            req.put(url, headers=headers, json=body, timeout=10)
+    except Exception as e:
+        print(f"GitHub notified_ids save error: {e}")
         
 def init_fyers():
 
