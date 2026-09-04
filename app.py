@@ -613,8 +613,21 @@ def load_notified_ids():
                 return set(json.load(f))
     except Exception as e:
         print(f"Load notified ids error: {e}")
+    # Fallback: load from GitHub (persists across restarts)
+    try:
+        if GITHUB_TOKEN and GITHUB_REPO:
+            import base64
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/data/notified_ids.json"
+            headers = {'Authorization': f'token {GITHUB_TOKEN}', 'Accept': 'application/vnd.github.v3+json'}
+            r = req.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                content = base64.b64decode(r.json()['content']).decode()
+                ids = json.loads(content) if content.strip() else []
+                print(f"✓ Loaded {len(ids)} notified IDs from GitHub")
+                return set(ids)
+    except Exception as e:
+        print(f"GitHub notified_ids load error: {e}")
     return set()
-
 
 def save_notified_ids(ids_set):
     try:
