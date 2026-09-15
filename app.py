@@ -93,20 +93,7 @@ SCANNER_CONFIG = {
         'lot_size': 20,
         'strike_step': 100
     },
-    'GOLDPETAL': {
-        'underlying': 'GOLDPETAL',
-        'exchange': 'MCX',
-        'expiry_weekday': 0,        # Monday (MCX Gold Petal expiry)
-        'option_key': '',           # No options chain on MCX
-        'resample_minutes': 5,
-        'fast_period': 5,
-        'fast_mult': 1.3,
-        'slow_period': 20,
-        'slow_mult': 4.0,
-        'lot_size': 1,              # Gold Petal = 1 gram
-        'strike_step': 1
-    }
-}
+    
 
 
 # ========================================
@@ -294,14 +281,7 @@ TRADE_SCHEDULE = {
     'SENSEX': [
         {'start': '09:15', 'end': '10:30', 'directions': 'SHORT'},
     ],
-    'GOLDPETAL': [
-        # No time/direction restrictions — long and short allowed any time
-        # the market is open (Mon-Fri 09:00-23:59 IST, enforced by the
-        # market-hours guard + weekday check in notify_new_signals).
-        {'start': '09:00', 'end': '23:59', 'directions': 'LONG_SHORT'},
-    ],
-}
-
+    
 
 def _to_minutes(hhmm):
     h, m = hhmm.split(':')
@@ -1402,12 +1382,22 @@ def calculate_atr_trailing(df, fast_period, fast_mult, slow_period, slow_mult):
 # ========================================
 
 # DATA FETCHING FUNCTIONS
-
 # ========================================
-
-
+def _fyers_history_with_timeout(fyers, data, timeout_sec=20):
+    """Run fyers.history in a thread with a hard timeout. Returns None on timeout."""
+    result = [None]
+    def target():
+        try:
+            result[0] = fyers.history(data=data)
+        except Exception as e:
+            result[0] = {'s': 'error', 'message': str(e)}
+    thread = threading.Thread(target=target, daemon=True)
+    thread.start()
+    thread.join(timeout=timeout_sec)
+    if thread.is_alive():
+        return None  # timed out
+    return result[0]
 def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=True):
-
     fyers = init_fyers()
 
     if not fyers:
@@ -1446,10 +1436,11 @@ def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=Tru
     }
 
 
-    try:
-
-        response = fyers.history(data=data)
-
+        try:
+        response = _fyers_history_with_timeout(fyers, data, timeout_sec=20)
+        if response is None:
+            print(f"[fetch_candles] Timeout fetching {instrument_key}")
+            return pd.DataFrame()
 
         if response.get('s') != 'ok':
 
