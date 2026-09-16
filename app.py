@@ -1102,13 +1102,28 @@ def generate_signals():
     print(f"TOTAL SIGNALS: {len(signals)}")
     print(f"{'='*60}\n")
 
-    # Persist + Telegram notify for new signals (today only)
+        # Persist + Telegram notify for new signals (today only, fresh only)
     try:
         today_str = now.strftime('%Y-%m-%d')
         existing_all_ids = {s['_id'] for s in scan_cache.get('signals', [])}
         persisted_notified = load_notified_ids()
         all_known_ids = existing_all_ids | persisted_notified
-        brand_new = [s for s in signals if s.get('scan_date', '')[:10] == today_str and s['_id'] not in all_known_ids]
+        # Only send signals from the last 10 minutes — prevents /tmp wipe from
+        # re-spamming every signal of the day on every restart.
+        fresh_cutoff = now - timedelta(minutes=10)
+        brand_new = []
+        for s in signals:
+            if s.get('scan_date', '')[:10] != today_str:
+                continue
+            if s['_id'] in all_known_ids:
+                continue
+            try:
+                sig_dt = datetime.fromisoformat(s.get('scan_date', ''))
+                if sig_dt < fresh_cutoff:
+                    continue  # too old, don't re-spam after a /tmp wipe
+            except Exception:
+                pass
+            brand_new.append(s)
         if brand_new:
             notify_new_signals(brand_new)
     except Exception as e:
