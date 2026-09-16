@@ -301,7 +301,7 @@ def save_token(access_token, refresh_token=None):
 
 
 def load_token():
-    """Load tokens from file on startup"""
+    """Load tokens from file on startup, with env-var fallback for the access token"""
     try:
         with open(TOKEN_FILE, 'r') as f:
             data = json.load(f)
@@ -310,8 +310,15 @@ def load_token():
             token_data['refresh_token'] = data.get('refresh_token')
         print(f"✓ Token loaded from file")
     except Exception as e:
-        print(f"⚠ No token file found - requires login")
-
+        print(f"⚠ No token file found - falling back to env vars")
+        # Fallback: read access token from Render env var so it survives /tmp wipes
+        env_token = os.environ.get('FYERS_ACCESS_TOKEN', '').strip()
+        if env_token:
+            token_data['access_token'] = env_token
+            token_data['token_time'] = datetime.now(IST).isoformat()
+            print(f"✓ Access token loaded from FYERS_ACCESS_TOKEN env var")
+        else:
+            print(f"⚠ No FYERS_ACCESS_TOKEN env var - requires login")
     if not token_data['refresh_token']:
         try:
             with open(REFRESH_FILE, 'r') as f:
