@@ -1441,39 +1441,39 @@ def api_track():
 
 
 # ========================================
-# STARTUP BLOCK
+# STARTUP BLOCK (runs under gunicorn AND direct python)
 # ========================================
 
+port = int(os.environ.get('PORT', 5000))
+
+print(f"\n{'='*70}")
+print(f"PROFITMASTER FYERS SCANNER STARTING")
+print(f"{'='*70}")
+print(f"Port: {port}")
+print(f"Token: {'Active' if token_data['access_token'] else 'Not Set'}")
+print(f"Refresh Token: {'Available' if token_data.get('refresh_token') else 'Not Set'}")
+print(f"Server Time: {datetime.now(IST).strftime('%d %b %Y %H:%M:%S IST')}")
+print(f"{'='*70}\n")
+
+# Start background scanner thread (runs under gunicorn workers too)
+bg_thread = threading.Thread(target=background_scanner, daemon=True)
+bg_thread.start()
+print("Background scanner started (every 30 seconds during market hours)")
+
+# Keep-alive: pings /api/status every 14 min so Render free tier doesn't sleep
+def keep_alive_ping():
+    while True:
+        try:
+            req.get(f"http://localhost:{port}/api/status", timeout=10)
+            print(f"Keep-alive ping sent at {datetime.now(IST).strftime('%H:%M:%S IST')}")
+        except:
+            pass
+        time.sleep(840)
+
+keep_alive_thread = threading.Thread(target=keep_alive_ping, daemon=True)
+keep_alive_thread.start()
+print("Keep-alive pinger started (every 14 minutes)")
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-
-    print(f"\n{'='*70}")
-    print(f"PROFITMASTER FYERS SCANNER STARTING")
-    print(f"{'='*70}")
-    print(f"Port: {port}")
-    print(f"Token: {'Active' if token_data['access_token'] else 'Not Set'}")
-    print(f"Refresh Token: {'Available' if token_data.get('refresh_token') else 'Not Set'}")
-    print(f"Server Time: {datetime.now(IST).strftime('%d %b %Y %H:%M:%S IST')}")
-    print(f"{'='*70}\n")
-
-    # Start background scanner thread
-    bg_thread = threading.Thread(target=background_scanner, daemon=True)
-    bg_thread.start()
-    print("Background scanner started (every 30 seconds during market hours)")
-
-    # Start keep-alive thread (every 14 minutes)
-    def keep_alive_ping():
-        while True:
-            try:
-                req.get(f"http://localhost:{port}/api/status", timeout=10)
-                print(f"Keep-alive ping sent at {datetime.now(IST).strftime('%H:%M:%S IST')}")
-            except:
-                pass
-            time.sleep(840)
-
-    keep_alive_thread = threading.Thread(target=keep_alive_ping, daemon=True)
-    keep_alive_thread.start()
-    print("Keep-alive pinger started (every 14 minutes)")
-
     print("\nStarting Flask server...")
     app.run(host='0.0.0.0', port=port, debug=False)
