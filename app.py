@@ -1465,14 +1465,18 @@ bg_thread = threading.Thread(target=background_scanner, daemon=True)
 bg_thread.start()
 print("Background scanner started (every 30 seconds during market hours)")
 
-# Keep-alive: pings /api/status every 14 min so Render free tier doesn't sleep
+# Keep-alive: only pings during market hours (09:00-15:45 IST) so Render
+# stays awake when we need it, then sleeps to save monthly hours
 def keep_alive_ping():
     while True:
-        try:
-            req.get(f"http://localhost:{port}/api/status", timeout=10)
-            print(f"Keep-alive ping sent at {datetime.now(IST).strftime('%H:%M:%S IST')}")
-        except:
-            pass
+        now_ist = datetime.now(IST)
+        hm = now_ist.hour * 100 + now_ist.minute
+        if 900 <= hm <= 1545:  # market-hours window only
+            try:
+                req.get(f"http://localhost:{port}/api/status", timeout=10)
+                print(f"Keep-alive ping sent at {now_ist.strftime('%H:%M:%S IST')}")
+            except:
+                pass
         time.sleep(840)
 
 keep_alive_thread = threading.Thread(target=keep_alive_ping, daemon=True)
