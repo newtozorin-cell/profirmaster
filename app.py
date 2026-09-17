@@ -153,6 +153,10 @@ def send_telegram(chat_id, text):
 
 
 def save_signal_to_github(signal):
+    # Disabled: was causing infinite auto-deploy loop on Render (every signal push
+    # triggered a redeploy, which wiped the cache, which re-triggered signals next cycle).
+    # Signal persistence now handled by browser localStorage + server cache.
+    return
     if not GITHUB_TOKEN or not GITHUB_REPO:
         return
     try:
