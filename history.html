@@ -198,6 +198,7 @@ var allH = [], filtH = [];
 // Chart global config removed: analytics section deleted
 
 function showToast(m,t){
+    
 function load(){
     try{var rawTest=localStorage.getItem('signalHistory');if(rawTest)JSON.parse(rawTest);}catch(e){localStorage.removeItem('signalHistory');}
     syncFromScanner();
