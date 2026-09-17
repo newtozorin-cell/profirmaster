@@ -194,14 +194,10 @@ tr:hover td{background:#f8fafc;}
 <script>
 var API_BASE = 'https://profirmaster-85br.onrender.com';
 var allH = [], filtH = [];
-var chPnL, chOutcome, chSymbol, chDir, chGrade;
 
-Chart.defaults.font.family = "'DM Sans',sans-serif";
-Chart.defaults.color = '#718096';
-var TT = {backgroundColor:'#0f1f3d',titleColor:'#e2e8f0',bodyColor:'#a0aec0',padding:9,cornerRadius:6,displayColors:true,boxPadding:3};
+// Chart global config removed: analytics section deleted
 
-function showToast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast '+t+' show';setTimeout(function(){e.className='toast';},3000);}
-
+function showToast(m,t){
 function load(){
     try{var rawTest=localStorage.getItem('signalHistory');if(rawTest)JSON.parse(rawTest);}catch(e){localStorage.removeItem('signalHistory');}
     syncFromScanner();
