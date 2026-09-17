@@ -765,22 +765,6 @@ def calculate_atr_trailing(df, fast_period, fast_mult, slow_period, slow_mult):
 # DATA FETCHING FUNCTIONS
 # ========================================
 
-def _fyers_history_with_timeout(fyers, data, timeout_sec=20):
-    """Run fyers.history in a thread with a hard timeout. Returns None on timeout."""
-    result = [None]
-    def target():
-        try:
-            result[0] = fyers.history(data=data)
-        except Exception as e:
-            result[0] = {'s': 'error', 'message': str(e)}
-    thread = threading.Thread(target=target, daemon=True)
-    thread.start()
-    thread.join(timeout=timeout_sec)
-    if thread.is_alive():
-        return None  # timed out
-    return result[0]
-
-
 def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=True):
     fyers = init_fyers()
     if not fyers:
@@ -803,11 +787,8 @@ def fetch_candles(instrument_key, interval='1minute', days=90, retry_on_fail=Tru
         'cont_flag': '1'
     }
 
-    try:
-        response = _fyers_history_with_timeout(fyers, data, timeout_sec=20)
-        if response is None:
-            print(f"[fetch_candles] Timeout fetching {instrument_key}")
-            return pd.DataFrame()
+        try:
+        response = fyers.history(data=data)
 
         if response.get('s') != 'ok':
             if retry_on_fail and 'unauthorized' in str(response.get('message', '')).lower():
@@ -1233,15 +1214,10 @@ def background_scanner():
                 if scan_lock.acquire(blocking=False):
                     try:
                         print(f"[BG] Starting background scan at {datetime.now(IST).strftime('%H:%M:%S')}")
-                        signals = generate_signals()
-                        # Only overwrite cache if the new scan returned something — protects
-                        # the UI from going blank during transient Fyers API hiccups
-                        if signals:
-                            scan_cache['signals'] = signals
-                            scan_cache['last_scan'] = datetime.now(IST)
-                            print(f"[BG] Scan complete. {len(signals)} signals cached.")
-                        else:
-                            print(f"[BG] Scan returned 0 signals — keeping previous cache ({len(scan_cache.get('signals', []))} signals preserved).")
+                                                signals = generate_signals()
+                        scan_cache['signals'] = signals
+                        scan_cache['last_scan'] = datetime.now(IST)
+                        print(f"[BG] Scan complete. {len(signals)} signals cached.")
                     finally:
                         scan_lock.release()
                 else:
