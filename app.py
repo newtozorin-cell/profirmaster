@@ -974,6 +974,7 @@ def api_status():
 
 @app.route('/api/signals')
 def api_signals():
+    ensure_bg_started()
     now = datetime.now(IST)
     status = get_scanner_status()
     force = request.args.get('force', 'false').lower() == 'true'
@@ -1279,9 +1280,15 @@ print(f"Server Time: {datetime.now(IST).strftime('%d %b %Y %H:%M:%S IST')}")
 print(f"{'='*70}\n")
 
 # Background scanner thread (runs under gunicorn too)
-bg_thread = threading.Thread(target=background_scanner, daemon=True)
-bg_thread.start()
-print("Background scanner started (every 30 seconds during market hours)")
+_bg_started = False
+
+def ensure_bg_started():
+    global _bg_started, scan_lock
+    if not _bg_started:
+        _bg_started = True
+        scan_lock = threading.Lock()
+        threading.Thread(target=background_scanner, daemon=True).start()
+        print("Background scanner started (lazy)")
 
 # Keep-alive ping: only fires 09:00-15:45 IST so Render sleeps off-hours
 def keep_alive_ping():
