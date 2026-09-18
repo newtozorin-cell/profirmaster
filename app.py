@@ -572,7 +572,7 @@ def fetch_candles(instrument_key, interval='1minute', days=5, retry_on_fail=True
         'cont_flag': '1'
     }
 
-        try:
+            try:
         # Run fyers.history with a hard timeout so a slow API doesn't lock the scanner
         _resp_holder = []
         def _do_fetch():
@@ -589,6 +589,10 @@ def fetch_candles(instrument_key, interval='1minute', days=5, retry_on_fail=True
         response = _resp_holder[0] if _resp_holder else {'s': 'error', 'message': 'no response'}
 
         if response.get('s') != 'ok':
+            if retry_on_fail and 'unauthorized' in str(response.get('message', '')).lower():
+                if auto_refresh_access_token():
+                    return fetch_candles(instrument_key, interval, days, retry_on_fail=False)
+            return pd.DataFrame()
             if retry_on_fail and 'unauthorized' in str(response.get('message', '')).lower():
                 if auto_refresh_access_token():
                     return fetch_candles(instrument_key, interval, days, retry_on_fail=False)
