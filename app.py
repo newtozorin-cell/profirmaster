@@ -49,6 +49,17 @@ SCANNER_CONFIG = {
         'slow_mult': 4.0,
         'lot_size': 30,
         'strike_step': 100
+    },
+        'SENSEX': {
+        'instrument_key': 'BSE:SENSEX-INDEX',
+        'option_key': 'BSE:SENSEX-INDEX',
+        'resample_minutes': 5,
+        'fast_period': 5,
+        'fast_mult': 1.5,
+        'slow_period': 20,
+        'slow_mult': 4.0,
+        'lot_size': 20,
+        'strike_step': 100
     }
 }
 
