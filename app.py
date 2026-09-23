@@ -1276,8 +1276,8 @@ def notify_new_signals(new_signals):
 
 
 # OpenAlgo → Telegram webhook bridge (registered below)
-from webhook_bridge import bp as webhook_bp
-app.register_blueprint(webhook_bp)
+#from webhook_bridge import bp as webhook_bp
+#app.register_blueprint(webhook_bp)
 
 # ========================================
 # STARTUP BLOCK (runs under gunicorn AND direct python)
