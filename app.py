@@ -656,138 +656,151 @@ def resample_candles(df_1m, minutes):
 # SIGNAL GENERATION
 # ========================================
 
+FIVE_MIN_START = 9 * 60 + 20   # before 09:20 -> 1m crossover, from 09:20 -> 5m crossover
+
+
+def collect_candidates(df, symbol, config, tf_min, now_naive, early, tail_n=None):
+    """Crossover signals on closed candles only.
+    early=True: bars before 09:20 (1m chart). early=False: bars from 09:20 (5m chart)."""
+    out = []
+    if df is None or len(df) == 0:
+        return out
+
+    # Drop the still-forming candle
+    if df['datetime'].iloc[-1] + timedelta(minutes=tf_min) > now_naive:
+        df = df.iloc[:-1].reset_index(drop=True)
+
+    if len(df) < max(config['fast_period'], config['slow_period']) + 10:
+        return out
+
+    df = calculate_atr_trailing(
+        df, config['fast_period'], config['fast_mult'],
+        config['slow_period'], config['slow_mult']
+    )
+    if 'buy_signal' not in df.columns:
+        return out
+
+    scan_df = df.tail(tail_n).copy() if tail_n else df
+
+    for _, row in scan_df.iterrows():
+        if not (row['buy_signal'] or row['sell_signal']):
+            continue
+
+        bar_dt = pd.to_datetime(row['datetime'])
+        mins = bar_dt.hour * 60 + bar_dt.minute
+        if early and mins >= FIVE_MIN_START:
+            continue
+        if (not early) and mins < FIVE_MIN_START:
+            continue
+
+        direction = 'BUY-LONG' if row['buy_signal'] else 'SELL-SHORT'
+        entry = round(float(row['close']), 2)
+        trail2 = round(float(row['trail2']), 2)
+        trail1 = round(float(row['trail1']), 2)
+        sl = trail2
+
+        if direction == 'BUY-LONG':
+            risk = entry - sl
+            target_1 = round(entry + risk * 1.5, 2)
+            target_2 = round(entry + risk * 2.5, 2)
+        else:
+            risk = sl - entry
+            target_1 = round(entry - risk * 1.5, 2)
+            target_2 = round(entry - risk * 2.5, 2)
+
+        risk = abs(risk)
+        if risk == 0:
+            continue
+
+        rr = round(abs(target_2 - entry) / risk, 2)
+
+        confidence = 0.5
+        bar_c = row.get('bar_color', 'neutral')
+        if direction == 'BUY-LONG':
+            if bar_c == 'green':
+                confidence += 0.2
+            elif bar_c == 'blue':
+                confidence += 0.1
+        else:
+            if bar_c == 'red':
+                confidence += 0.2
+            elif bar_c == 'yellow':
+                confidence += 0.1
+        if rr >= 2:
+            confidence += 0.1
+        if rr >= 3:
+            confidence += 0.1
+        confidence = min(confidence, 0.95)
+
+        if confidence >= 0.8:
+            grade, grade_score = 'A+', 95
+        elif confidence >= 0.7:
+            grade, grade_score = 'A', 85
+        elif confidence >= 0.6:
+            grade, grade_score = 'B', 70
+        else:
+            grade, grade_score = 'C', 55
+
+        signal_dt = IST.localize(bar_dt.to_pydatetime())
+
+        out.append({
+            '_id': f"{symbol}_{signal_dt.strftime('%Y%m%d_%H%M')}",
+            'symbol': symbol,
+            'direction': direction,
+            'model': 'ATR-TS',
+            'entry': entry,
+            'sl': sl,
+            'target_1': target_1,
+            'target_2': target_2,
+            'target': target_2,
+            'risk_reward': f"1:{rr}",
+            'confidence': round(confidence, 2),
+            'grade': grade,
+            'grade_score': grade_score,
+            'scan_date': signal_dt.isoformat(),
+            'scan_time': signal_dt.strftime('%H:%M'),
+            'trail1': trail1,
+            'trail2': trail2,
+            'fast_atr': round(float(row['fast_atr']), 2),
+            'slow_atr': round(float(row['slow_atr']), 2),
+            'bar_color': bar_c,
+            'regime': row.get('regime', 'UNKNOWN'),
+            'timeframe': f"{tf_min}m",
+            'lot_size': config['lot_size'],
+            'scanner_type': 'atr_trailing',
+            'outcome': 'pending'
+        })
+    return out
+
+
 def generate_signals():
     now = datetime.now(IST)
-    today = now.date()
+    now_naive = now.replace(tzinfo=None)
+    today_str = now.strftime('%Y-%m-%d')
     signals = []
+    scanned = set()
 
     print(f"\n{'='*60}")
-    print(f"SIGNAL SCAN: {now.strftime('%d %b %Y %H:%M:%S IST')}")
+    print(f"SIGNAL SCAN (SPOT): {now.strftime('%d %b %Y %H:%M:%S IST')}")
     print(f"{'='*60}")
 
     for symbol, config in SCANNER_CONFIG.items():
         try:
-            print(f"\nScanning {symbol}...")
-
-            df_1m = fetch_candles(config['instrument_key'], '1minute', days=5)
-
+            spot_sym = config['option_key']          # spot index chart
+            df_1m = fetch_candles(spot_sym, '1minute', days=3)
             if len(df_1m) < 50:
-                print(f"Insufficient candles: {len(df_1m)}")
+                print(f"{symbol}: insufficient candles ({len(df_1m)})")
                 continue
 
-            df = resample_candles(df_1m, config['resample_minutes'])
+            df_5m = resample_candles(df_1m, config['resample_minutes'])
 
-            if len(df) < max(config['fast_period'], config['slow_period']) + 10:
-                print(f"Insufficient resampled candles: {len(df)}")
-                continue
+            cands = collect_candidates(df_1m, symbol, config, 1, now_naive, True)
+            cands += collect_candidates(df_5m, symbol, config, config['resample_minutes'],
+                                        now_naive, False, tail_n=200)
 
-            df = calculate_atr_trailing(
-                df, 
-                config['fast_period'], config['fast_mult'],
-                config['slow_period'], config['slow_mult']
-            )
-
-            if len(df) >= 200:
-                scan_df = df.tail(200).copy()
-                print(f"Scanning last 200 candles for {symbol}")
-            else:
-                scan_df = df.copy()
-                print(f"Only {len(df)} candles available")
-
-            signal_count = 0
-            for _, row in scan_df.iterrows():
-                if not (row.get('buy_signal', False) or row.get('sell_signal', False)):
-                    continue
-
-                direction = 'BUY-LONG' if row['buy_signal'] else 'SELL-SHORT'
-                entry = round(float(row['close']), 2)
-                trail2 = round(float(row['trail2']), 2)
-                trail1 = round(float(row['trail1']), 2)
-
-                if direction == 'BUY-LONG':
-                    sl = trail2
-                    risk = entry - sl
-                    target_1 = round(entry + risk * 1.5, 2)
-                    target_2 = round(entry + risk * 2.5, 2)
-                else:
-                    sl = trail2
-                    risk = sl - entry
-                    target_1 = round(entry - risk * 1.5, 2)
-                    target_2 = round(entry - risk * 2.5, 2)
-
-                risk = abs(risk)
-                if risk == 0:
-                    continue
-
-                reward = abs(target_2 - entry)
-                rr = round(reward / risk, 2)
-
-                confidence = 0.5
-                bar_c = row.get('bar_color', 'neutral')
-
-                if direction == 'BUY-LONG':
-                    if bar_c == 'green':
-                        confidence += 0.2
-                    elif bar_c == 'blue':
-                        confidence += 0.1
-                else:
-                    if bar_c == 'red':
-                        confidence += 0.2
-                    elif bar_c == 'yellow':
-                        confidence += 0.1
-
-                if rr >= 2:
-                    confidence += 0.1
-                if rr >= 3:
-                    confidence += 0.1
-
-                confidence = min(confidence, 0.95)
-
-                if confidence >= 0.8:
-                    grade, grade_score = 'A+', 95
-                elif confidence >= 0.7:
-                    grade, grade_score = 'A', 85
-                elif confidence >= 0.6:
-                    grade, grade_score = 'B', 70
-                else:
-                    grade, grade_score = 'C', 55
-
-                signal_dt = pd.to_datetime(row['datetime'])
-                if signal_dt.tzinfo is None:
-                    signal_dt = IST.localize(signal_dt)
-
-                signals.append({
-                    '_id': f"{symbol}_{signal_dt.strftime('%Y%m%d_%H%M')}",
-                    'symbol': symbol,
-                    'direction': direction,
-                    'model': 'ATR-TS',
-                    'entry': entry,
-                    'sl': sl,
-                    'target_1': target_1,
-                    'target_2': target_2,
-                    'target': target_2,
-                    'risk_reward': f"1:{rr}",
-                    'confidence': round(confidence, 2),
-                    'grade': grade,
-                    'grade_score': grade_score,
-                    'scan_date': signal_dt.isoformat(),
-                    'scan_time': signal_dt.strftime('%H:%M'),
-                    'trail1': trail1,
-                    'trail2': trail2,
-                    'fast_atr': round(float(row['fast_atr']), 2),
-                    'slow_atr': round(float(row['slow_atr']), 2),
-                    'bar_color': bar_c,
-                    'regime': row.get('regime', 'UNKNOWN'),
-                    'timeframe': f"{config['resample_minutes']}m",
-                    'lot_size': config['lot_size'],
-                    'scanner_type': 'atr_trailing',
-                    'outcome': 'pending'
-                })
-
-                signal_count += 1
-                print(f"  {direction} signal @ {signal_dt.strftime('%H:%M')} | Entry: {entry} | SL: {sl} | Grade: {grade}")
-
-            print(f"{symbol}: {signal_count} signal(s)")
+            signals.extend(cands)
+            scanned.add(symbol)
+            print(f"{symbol}: {len(cands)} signal(s)")
 
         except Exception as e:
             print(f"Error scanning {symbol}: {e}")
@@ -798,45 +811,30 @@ def generate_signals():
     signals.sort(key=lambda x: x.get('scan_date', ''), reverse=True)
 
     existing = scan_cache.get('signals', [])
-    existing_ids = {s['_id'] for s in signals}
 
+    # Keep today's cached signals only for symbols that failed to scan this round
+    new_ids = {s['_id'] for s in signals}
     for s in existing:
-        if s['_id'] not in existing_ids and s.get('scan_date', '')[:10] == datetime.now(IST).strftime('%Y-%m-%d'):
+        if (s['_id'] not in new_ids
+                and s.get('scan_date', '')[:10] == today_str
+                and s.get('symbol') not in scanned):
             signals.append(s)
 
     signals.sort(key=lambda x: x.get('scan_date', ''), reverse=True)
 
-    print(f"\n{'='*60}")
-    print(f"TOTAL SIGNALS: {len(signals)}")
-    print(f"{'='*60}\n")
-
-    # Telegram notify for new signals (today only, fresh only — skip old ones on restart)
     try:
-        today_str = datetime.now(IST).strftime('%Y-%m-%d')
-        existing_ids = {s['_id'] for s in scan_cache.get('signals', [])}
-        notified = load_notified_ids()
-        all_known = existing_ids | notified
-        fresh_cutoff = datetime.now(IST) - timedelta(minutes=10)
-        brand_new = []
-        for s in signals:
-            if s.get('scan_date', '')[:10] != today_str:
-                continue
-            if s['_id'] in all_known:
-                continue
-            try:
-                sig_dt = datetime.fromisoformat(s.get('scan_date', ''))
-                if sig_dt < fresh_cutoff:
-                    continue
-            except Exception:
-                pass
-            brand_new.append(s)
+        existing_all_ids = {s['_id'] for s in existing}
+        all_known_ids = existing_all_ids | load_notified_ids()
+        brand_new = [s for s in signals
+                     if s.get('scan_date', '')[:10] == today_str and s['_id'] not in all_known_ids]
         if brand_new:
             notify_new_signals(brand_new)
     except Exception as e:
         print(f"Notify error: {e}")
 
+    print(f"TOTAL SIGNALS: {len(signals)}")
+    save_signals_to_file(signals)
     return signals
-
 
 # ========================================
 # OPTION SIGNAL GENERATION
