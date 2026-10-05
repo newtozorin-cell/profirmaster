@@ -659,7 +659,7 @@ def resample_candles(df_1m, minutes):
 FIVE_MIN_START = 9 * 60 + 20   # before 09:20 -> 1m crossover, from 09:20 -> 5m crossover
 
 
-def collect_candidates(df, symbol, config, tf_min, now_naive, early, tail_n=None):
+def collect_candidates(df, symbol, config, tf_min, now_naive, early, keep_days=3):
     """Crossover signals on closed candles only.
     early=True: bars before 09:20 (1m chart). early=False: bars from 09:20 (5m chart)."""
     out = []
@@ -670,7 +670,9 @@ def collect_candidates(df, symbol, config, tf_min, now_naive, early, tail_n=None
     if df['datetime'].iloc[-1] + timedelta(minutes=tf_min) > now_naive:
         df = df.iloc[:-1].reset_index(drop=True)
 
-    if len(df) < max(config['fast_period'], config['slow_period']) + 10:
+    need = max(config['fast_period'], config['slow_period']) + 10
+    if len(df) < need:
+        print(f"{symbol}: only {len(df)} {tf_min}m bars (need {need}) - skipping")
         return out
 
     df = calculate_atr_trailing(
@@ -680,7 +682,10 @@ def collect_candidates(df, symbol, config, tf_min, now_naive, early, tail_n=None
     if 'buy_signal' not in df.columns:
         return out
 
-    scan_df = df.tail(tail_n).copy() if tail_n else df
+    # Indicators use the full history; only signals from the last `keep_days` trading days are emitted
+    days_present = sorted(df['datetime'].dt.date.unique())
+    keep = set(days_present[-keep_days:])
+    scan_df = df[df['datetime'].dt.date.isin(keep)]
 
     for _, row in scan_df.iterrows():
         if not (row['buy_signal'] or row['sell_signal']):
@@ -787,7 +792,7 @@ def generate_signals():
     for symbol, config in SCANNER_CONFIG.items():
         try:
             spot_sym = config['option_key']          # spot index chart
-            df_1m = fetch_candles(spot_sym, '1minute', days=3)
+            df_1m = fetch_candles(spot_sym, '1minute', days=10)
             if len(df_1m) < 50:
                 print(f"{symbol}: insufficient candles ({len(df_1m)})")
                 continue
@@ -796,7 +801,7 @@ def generate_signals():
 
             cands = collect_candidates(df_1m, symbol, config, 1, now_naive, True)
             cands += collect_candidates(df_5m, symbol, config, config['resample_minutes'],
-                                        now_naive, False, tail_n=200)
+                                        now_naive, False)
 
             signals.extend(cands)
             scanned.add(symbol)
@@ -1095,6 +1100,43 @@ def api_signals():
         })
 
 
+@app.route('/api/debug/<symbol>')
+def api_debug(symbol):
+    """Read-only: today's candles with trail1/trail2 and signal flags.
+    Example: /api/debug/SENSEX?tf=5&from=10:15&to=10:50   (tf=1 for 1-minute bars)"""
+    try:
+        symbol = symbol.upper()
+        cfg = SCANNER_CONFIG.get(symbol)
+        if not cfg:
+            return jsonify({'status': 'error', 'message': 'unknown symbol'})
+        use_1m = request.args.get('tf', '5') == '1'
+        t_from = request.args.get('from', '09:15')
+        t_to = request.args.get('to', '15:30')
+        df = fetch_candles(cfg['option_key'], '1minute', days=10)
+        if len(df) == 0:
+            return jsonify({'status': 'error', 'message': 'no candles'})
+        if not use_1m:
+            df = resample_candles(df, cfg['resample_minutes'])
+        df = calculate_atr_trailing(df, cfg['fast_period'], cfg['fast_mult'],
+                                    cfg['slow_period'], cfg['slow_mult'])
+        today = datetime.now(IST).strftime('%Y-%m-%d')
+        hhmm = df['datetime'].dt.strftime('%H:%M')
+        d = df[(df['datetime'].dt.strftime('%Y-%m-%d') == today) & (hhmm >= t_from) & (hhmm <= t_to)].tail(60)
+        rows = []
+        for _, r in d.iterrows():
+            rows.append({
+                'time': r['datetime'].strftime('%H:%M'),
+                'o': round(float(r['open']), 2), 'h': round(float(r['high']), 2),
+                'l': round(float(r['low']), 2), 'c': round(float(r['close']), 2),
+                'trail1': round(float(r['trail1']), 2), 'trail2': round(float(r['trail2']), 2),
+                'buy': bool(r['buy_signal']), 'sell': bool(r['sell_signal'])
+            })
+        return jsonify({'status': 'success', 'symbol': symbol, 'timeframe': '1m' if use_1m else f"{cfg['resample_minutes']}m",
+                        'candles_total': len(df), 'rows': rows})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+
 @app.route('/api/option-signals')
 def api_option_signals():
     now = datetime.now(IST)
@@ -1384,4 +1426,3 @@ print("Keep-alive pinger started (only during market hours)")
 if __name__ == '__main__':
     print("\nStarting Flask server...")
     app.run(host='0.0.0.0', port=port, debug=False)
-
