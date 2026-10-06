@@ -1033,9 +1033,18 @@ def phase2_allowed(sig):
 
 
 def phase_filter(signals):
-    """Phase1 by default; /api/signals?phase=2 returns Phase2."""
+    """Phase1 by default; ?phase=2 returns Phase2; ?phase=all returns everything
+    (scanner page only), each tagged phase1/phase2 true/false."""
     try:
         phase = request.args.get('phase', '1').strip()
+        if phase == 'all':
+            tagged = []
+            for s in signals:
+                t = dict(s)
+                t['phase1'] = phase1_allowed(s)
+                t['phase2'] = phase2_allowed(s)
+                tagged.append(t)
+            return tagged
         check = phase2_allowed if phase == '2' else phase1_allowed
         return [s for s in signals if check(s)]
     except Exception as e:
