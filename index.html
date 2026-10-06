@@ -362,7 +362,9 @@ function renderCard(s){
     html+='<div class="card-trail-item">Bar: <span>'+(s.bar_color||'')+'</span></div>';
     html+='</div>';
     html+='<div class="card-bottom"><span class="'+gradeClass+'">'+s.grade+' ('+s.grade_score+')</span>';
-    html+='<span class="card-conf">Conf: '+confPct+'%</span><span class="card-time">'+timeStr+'</span></div>';
+    var ph=(s.phase1?'P1':'')+(s.phase1&&s.phase2?' · ':'')+(s.phase2?'P2':'');
+    if(!ph) ph='no phase';
+    html+='<span class="card-conf">Conf: '+confPct+'%</span><span class="card-conf" title="Eligible under Phase1 / Phase2">'+ph+'</span><span class="card-time">'+timeStr+'</span></div>';
     html+='</div>';
     return html;
 }
@@ -528,7 +530,7 @@ async function runScan(){
     setPanelsLoading();
 
     try{
-        var r=await fetch(API_BASE+'/api/signals');
+        var r=await fetch(API_BASE+'/api/signals?phase=all');
         if(!r.ok) throw new Error('API Error');
         var d=await r.json();
         updateStatus(d);
@@ -585,7 +587,7 @@ runScan();
 
 // Auto-refresh every 60s
 setInterval(function(){
-    fetch(API_BASE+'/api/signals')
+    fetch(API_BASE+'/api/signals?phase=all')
         .then(function(r){return r.ok?r.json():null;})
         .then(function(d){
             if(!d) return;
