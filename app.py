@@ -777,6 +777,22 @@ def collect_candidates(df, symbol, config, tf_min, now_naive, early, keep_days=3
         })
     return out
 
+_hist_cache = {}
+
+def get_1m_history(sym):
+    today = datetime.now(IST).strftime('%Y-%m-%d')
+    old = _hist_cache.get(sym)
+    if old and old['day'] == today:
+        new = fetch_candles(sym, '1minute', days=1)
+        if len(new) > 0:
+            df = pd.concat([old['df'], new]).drop_duplicates('datetime', keep='last').sort_values('datetime').reset_index(drop=True)
+            df = df[df['datetime'] >= df['datetime'].max() - pd.Timedelta(days=10)].reset_index(drop=True)
+            _hist_cache[sym] = {'day': today, 'df': df}
+            return df
+    df = fetch_candles(sym, '1minute', days=10)
+    if len(df) > 0:
+        _hist_cache[sym] = {'day': today, 'df': df}
+    return df
 
 def generate_signals():
     now = datetime.now(IST)
@@ -792,7 +808,7 @@ def generate_signals():
     for symbol, config in SCANNER_CONFIG.items():
         try:
             spot_sym = config['option_key']          # spot index chart
-            df_1m = fetch_candles(spot_sym, '1minute', days=10)
+            df_1m = get_1m_history(spot_sym)
             if len(df_1m) < 50:
                 print(f"{symbol}: insufficient candles ({len(df_1m)})")
                 continue
@@ -938,7 +954,7 @@ def background_scanner():
         except Exception as e:
             print(f"[BG] Error in background scanner: {e}")
 
-        time.sleep(15)
+        time.sleep(5)
 
 
 # ========================================
